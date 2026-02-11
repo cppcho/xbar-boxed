@@ -28,5 +28,5 @@ Uses GNU Stow to symlink the `boxed/` directory tree into `~`:
 ## Linting
 
 ```
-ruff check .
+uvx ruff check .
 ```
