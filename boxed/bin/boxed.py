@@ -180,6 +180,33 @@ def cmd_start(args):
     print(f"Timer started: {duration_mins}m — {task}")
 
 
+def cmd_complete(args):
+    """Called by the xbar plugin when a timer expires."""
+    state = read_state()
+    if not state:
+        return
+    if state.get("notified"):
+        return
+
+    now = int(time.time())
+    started = int(state.get("started_epoch", 0))
+    duration = int(state.get("duration", 0))
+    elapsed = now - started
+
+    if elapsed < duration:
+        return
+
+    task = state.get("task", "Untitled")
+    duration_mins = duration // 60
+    config = read_config()
+
+    log_event("COMPLETE", str(duration_mins), task)
+    notify("Boxed", f"Time's up! — {task}", sound=(config["notify_sound"] == "true"))
+
+    state["notified"] = True
+    atomic_write(STATE_FILE, state)
+
+
 def cmd_stop(args):
     state = read_state()
     if not state:
@@ -223,6 +250,8 @@ def main():
         cmd_start(sys.argv[2:])
     elif cmd == "stop":
         cmd_stop(sys.argv[2:])
+    elif cmd == "complete":
+        cmd_complete(sys.argv[2:])
     else:
         print(f"Unknown command: {cmd}", file=sys.stderr)
         sys.exit(1)

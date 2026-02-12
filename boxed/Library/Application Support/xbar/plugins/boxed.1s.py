@@ -10,10 +10,8 @@
 # <xbar.dependencies>python</xbar.dependencies>
 
 import json
-import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -39,8 +37,8 @@ def main():
 
         if remaining <= 0:
             if not state.get("notified"):
-                notify_done(task)
-                mark_notified(state)
+                subprocess.run([PYTHON, str(BOXED_PY), "complete"], capture_output=True)
+                state = read_state()
             out("📦")
         else:
             out(f"{task} ({format_remaining(remaining)})")
@@ -52,19 +50,6 @@ def main():
     out(f"Open Log | bash=/usr/bin/open param1={LOG_FILE} terminal=false")
     out("---")
     out(f"Open Config Directory | bash=/usr/bin/open param1={CONFIG_DIR} terminal=false")
-
-
-def read_config():
-    config = {"notify_sound": "true"}
-    if CONFIG_FILE.exists():
-        for line in CONFIG_FILE.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, value = line.split("=", 1)
-                config[key.strip()] = value.strip()
-    return config
 
 
 def read_state():
@@ -90,28 +75,6 @@ def format_remaining(seconds):
         return f"{seconds // 60}m"
     else:
         return f"{seconds}s"
-
-
-def notify_done(task):
-    safe_task = task.replace("\\", "\\\\").replace('"', '\\"')
-    script = f'display notification "Time\'s up!" with title "Boxed — {safe_task}"'
-    config = read_config()
-    if config.get("notify_sound", "true") == "true":
-        script += ' sound name "default"'
-    subprocess.run(["osascript", "-e", script], capture_output=True)
-
-
-def mark_notified(state):
-    state["notified"] = True
-    dir_name = os.path.dirname(STATE_FILE) or "."
-    with tempfile.NamedTemporaryFile(
-        "w", dir=dir_name, delete=False, suffix=".tmp"
-    ) as tmp:
-        json.dump(state, tmp, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-        tmp_path = tmp.name
-    os.replace(tmp_path, STATE_FILE)
 
 
 def out(text):
