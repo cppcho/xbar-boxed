@@ -4,6 +4,7 @@
 Usage:
     boxed start <duration> <task name...>
     boxed stop
+    boxed again
 """
 
 import os
@@ -18,6 +19,7 @@ from pathlib import Path
 CONFIG_DIR = Path.home() / ".config" / "boxed"
 STATE_FILE = CONFIG_DIR / "state.json"
 LOG_FILE = CONFIG_DIR / "log"
+LAST_FILE = CONFIG_DIR / "last.json"
 CONFIG_FILE = CONFIG_DIR / "config"
 
 DEFAULT_CONFIG = """\
@@ -167,6 +169,8 @@ def cmd_start(args):
                 old_task,
             )
 
+    atomic_write(LAST_FILE, {"duration": duration_mins, "task": task})
+
     duration_secs = duration_mins * 60
     write_state(
         task=task,
@@ -205,6 +209,20 @@ def cmd_complete(args):
 
     state["notified"] = True
     atomic_write(STATE_FILE, state)
+
+
+def cmd_again(args):
+    """Repeat the last started timer."""
+    if not LAST_FILE.exists():
+        print("No previous timer to repeat.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(LAST_FILE, "r") as f:
+            last = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error reading last timer: {e}", file=sys.stderr)
+        sys.exit(1)
+    cmd_start([str(last["duration"]), last["task"]])
 
 
 def cmd_stop(args):
@@ -250,6 +268,8 @@ def main():
         cmd_start(sys.argv[2:])
     elif cmd == "stop":
         cmd_stop(sys.argv[2:])
+    elif cmd == "again":
+        cmd_again(sys.argv[2:])
     elif cmd == "complete":
         cmd_complete(sys.argv[2:])
     else:
