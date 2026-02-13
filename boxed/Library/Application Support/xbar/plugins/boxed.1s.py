@@ -10,8 +10,10 @@
 # <xbar.dependencies>python</xbar.dependencies>
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -35,6 +37,18 @@ def read_config():
                 key, value = line.split("=", 1)
                 config[key.strip()] = value.strip()
     return config
+
+
+def atomic_write(filepath, data):
+    dir_name = os.path.dirname(filepath) or "."
+    with tempfile.NamedTemporaryFile(
+        "w", dir=dir_name, delete=False, suffix=".tmp"
+    ) as tmp:
+        json.dump(data, tmp, indent=2)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_path = tmp.name
+    os.replace(tmp_path, filepath)
 
 
 def play_tick():
@@ -67,8 +81,11 @@ def main():
             if tick_interval > 0:
                 elapsed = now - started
                 interval_secs = tick_interval * 60
-                if elapsed > 0 and elapsed % interval_secs == 0:
+                last_tick = state.get("last_tick_epoch") or started
+                if now - last_tick >= interval_secs:
                     play_tick()
+                    state["last_tick_epoch"] = now
+                    atomic_write(STATE_FILE, state)
             out(f"{task} ({format_remaining(remaining)})")
         out("---")
     else:
