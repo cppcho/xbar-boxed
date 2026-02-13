@@ -20,7 +20,7 @@ STATE_FILE = CONFIG_DIR / "state.json"
 CONFIG_FILE = CONFIG_DIR / "config"
 LOG_FILE = CONFIG_DIR / "log"
 
-BOXED_PY = Path(__file__).resolve().parent / "boxed.py"
+BOXED_PY = Path.home() / "bin" / "boxed.py"
 PYTHON = sys.executable or "/usr/bin/python3"
 
 
