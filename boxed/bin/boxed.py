@@ -111,13 +111,26 @@ def log_event(event, duration_str=None, task=None, extra=None):
         f.write(" ".join(parts) + "\n")
 
 
-def notify(title, message, sound=True):
+def play_sound(sound_name=None, sound_file=None):
+    """Play a macOS system sound by name or a custom sound file."""
+    if sound_name:
+        path = f"/System/Library/Sounds/{sound_name}.aiff"
+    elif sound_file:
+        path = str(sound_file)
+    else:
+        return
+    subprocess.Popen(
+        ["afplay", path],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def notify(title, message):
     # Escape backslashes and double quotes for AppleScript string literals
     safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
     safe_message = message.replace("\\", "\\\\").replace('"', '\\"')
     script = f'display notification "{safe_message}" with title "{safe_title}"'
-    if sound:
-        script += ' sound name "default"'
     subprocess.run(
         ["osascript", "-e", script],
         capture_output=True,
@@ -181,7 +194,9 @@ def cmd_start(args):
 
     config = read_config()
     log_event("START", str(duration_mins), task)
-    notify("Boxed", f"Timer started: {duration_mins}m — {task}", sound=(config["notify_sound"] == "true"))
+    notify("Boxed", f"Timer started: {duration_mins}m — {task}")
+    if config["notify_sound"] == "true":
+        play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonReady1.ogg")
     print(f"Timer started: {duration_mins}m — {task}")
 
 
@@ -206,7 +221,9 @@ def cmd_complete(args):
     config = read_config()
 
     log_event("COMPLETE", str(duration_mins), task)
-    notify("Boxed", f"Time's up! — {task}", sound=(config["notify_sound"] == "true"))
+    notify("Boxed", f"Time's up! — {task}")
+    if config["notify_sound"] == "true":
+        play_sound(sound_name="Glass")
 
     state["notified"] = True
     atomic_write(STATE_FILE, state)
@@ -253,7 +270,9 @@ def cmd_stop(args):
         task,
     )
     elapsed_str = format_elapsed(elapsed)
-    notify("Boxed", f"Timer stopped: {task} ({elapsed_str} elapsed)", sound=(config["notify_sound"] == "true"))
+    notify("Boxed", f"Timer stopped: {task} ({elapsed_str} elapsed)")
+    if config["notify_sound"] == "true":
+        play_sound(sound_name="Sosumi")
     print(f"Timer stopped: {task} ({elapsed_str} elapsed)")
 
 

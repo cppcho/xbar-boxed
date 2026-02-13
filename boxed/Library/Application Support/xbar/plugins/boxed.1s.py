@@ -39,7 +39,7 @@ def read_config():
 
 def play_tick():
     subprocess.Popen(
-        ["afplay", "/System/Library/Sounds/Tink.aiff"],
+        ["afplay", str(CONFIG_DIR / "sounds" / "PeonYes3.ogg")],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
