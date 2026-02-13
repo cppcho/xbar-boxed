@@ -14,7 +14,7 @@ Boxed is a macOS menu bar timeboxing timer built as an [xbar](https://xbarapp.co
 Both scripts share the same config directory (`~/.config/boxed/`) with:
 - `state.json` — current timer state (task, started_epoch, duration, notified)
 - `config` — simple `key = value` config file (e.g., `notify_sound = true`)
-- `log` — append-only event log (START/STOP entries)
+- `log` — human-readable event log, grouped by date with time ranges and outcome symbols (✓ completed, ✕ stopped)
 
 State writes use atomic file operations (temp file + fsync + os.replace) to avoid corruption.
 

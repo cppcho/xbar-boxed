@@ -79,7 +79,6 @@ def main():
             config = read_config()
             tick_interval = int(config.get("tick_interval", "0"))
             if tick_interval > 0:
-                elapsed = now - started
                 interval_secs = tick_interval * 60
                 last_tick = state.get("last_tick_epoch") or started
                 if now - last_tick >= interval_secs:

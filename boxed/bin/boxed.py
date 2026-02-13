@@ -97,18 +97,145 @@ def clear_state():
     STATE_FILE.unlink(missing_ok=True)
 
 
-def log_event(event, duration_str=None, task=None, extra=None):
+def _atomic_write_text(filepath, text):
+    """Write text to a file atomically via temp file + fsync + rename."""
+    dir_name = os.path.dirname(filepath) or "."
+    with tempfile.NamedTemporaryFile(
+        "w", dir=dir_name, delete=False, suffix=".tmp"
+    ) as tmp:
+        tmp.write(text)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_path = tmp.name
+    os.replace(tmp_path, filepath)
+
+
+def _read_log():
+    """Read the log file contents, returning empty string if missing."""
+    if LOG_FILE.exists():
+        return LOG_FILE.read_text()
+    return ""
+
+
+def _write_log(content):
+    """Write the log file atomically."""
     ensure_dirs()
-    ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    parts = [ts, event]
-    if duration_str:
-        parts.append(duration_str)
-    if task:
-        parts.append(f'"{task}"')
-    if extra:
-        parts.append(extra)
-    with open(LOG_FILE, "a") as f:
-        f.write(" ".join(parts) + "\n")
+    _atomic_write_text(LOG_FILE, content)
+
+
+def _insert_entry_in_log(content, date_str, entry_line):
+    """Insert an entry under the correct date section.
+
+    Dates are ordered newest-first; entries within a date are chronological.
+    """
+    header = f"# {date_str}"
+    lines = content.split("\n") if content else []
+
+    # Find if this date section already exists
+    header_idx = None
+    for i, line in enumerate(lines):
+        if line.strip() == header:
+            header_idx = i
+            break
+
+    if header_idx is not None:
+        # Find end of this date section (next header or end of file)
+        insert_idx = header_idx + 1
+        while insert_idx < len(lines):
+            if lines[insert_idx].startswith("# ") and lines[insert_idx] != header:
+                break
+            insert_idx += 1
+        # Back up past trailing blank lines to insert before them
+        while insert_idx > header_idx + 1 and lines[insert_idx - 1].strip() == "":
+            insert_idx -= 1
+        lines.insert(insert_idx, entry_line)
+    else:
+        # Need to create a new date section — newest dates first
+        # Find where to insert based on date ordering
+        insert_before = None
+        for i, line in enumerate(lines):
+            if line.startswith("# "):
+                existing_date = line[2:].strip()
+                if date_str > existing_date:
+                    insert_before = i
+                    break
+        if insert_before is not None:
+            block = [header, "", entry_line, ""]
+            for item in reversed(block):
+                lines.insert(insert_before, item)
+        else:
+            # Append at end (oldest date or first entry)
+            if lines and lines[-1].strip() != "":
+                lines.append("")
+            lines.append(header)
+            lines.append("")
+            lines.append(entry_line)
+            lines.append("")
+
+    # Clean up: ensure single trailing newline
+    result = "\n".join(lines).rstrip("\n") + "\n"
+    return result
+
+
+def _migrate_log_if_needed():
+    """If the log is in old format, rename to log.old and start fresh."""
+    if not LOG_FILE.exists():
+        return
+    content = _read_log()
+    if not content or content.startswith("#"):
+        return
+    # Old format detected — rename
+    old_path = CONFIG_DIR / "log.old"
+    os.replace(LOG_FILE, old_path)
+    # If a timer is currently running, write its partial entry
+    state = read_state()
+    if state and state.get("started_epoch"):
+        started = int(state["started_epoch"])
+        duration = int(state.get("duration", 0))
+        task = state.get("task", "Untitled")
+        duration_mins = duration // 60
+        dt = datetime.fromtimestamp(started)
+        date_str = dt.strftime("%Y-%m-%d")
+        time_str = dt.strftime("%H:%M:%S")
+        entry = f"{time_str} - ... {task} ({duration_mins} min)"
+        new_content = _insert_entry_in_log("", date_str, entry)
+        _write_log(new_content)
+
+
+def log_start(started_epoch, duration_mins, task):
+    """Log a partial entry for a timer that just started."""
+    ensure_dirs()
+    _migrate_log_if_needed()
+    dt = datetime.fromtimestamp(started_epoch)
+    date_str = dt.strftime("%Y-%m-%d")
+    time_str = dt.strftime("%H:%M:%S")
+    entry = f"{time_str} - ... {task} ({duration_mins} min)"
+    content = _read_log()
+    content = _insert_entry_in_log(content, date_str, entry)
+    _write_log(content)
+
+
+def log_end(started_epoch, duration_mins, task, completed):
+    """Update a partial log entry to its final form, or append if not found."""
+    ensure_dirs()
+    _migrate_log_if_needed()
+    dt = datetime.fromtimestamp(started_epoch)
+    date_str = dt.strftime("%Y-%m-%d")
+    start_time = dt.strftime("%H:%M:%S")
+    end_time = datetime.now().strftime("%H:%M:%S")
+    symbol = "✓" if completed else "✕"
+
+    partial = f"{start_time} - ... {task} ({duration_mins} min)"
+    final = f"{start_time} - {end_time} {task} ({duration_mins} min) {symbol}"
+
+    content = _read_log()
+    if partial in content:
+        content = content.replace(partial, final, 1)
+        _write_log(content)
+    else:
+        # Fallback: insert a complete entry
+        content = _insert_entry_in_log(content, date_str, final)
+        _write_log(content)
 
 
 def play_sound(sound_name=None, sound_file=None):
@@ -174,14 +301,12 @@ def cmd_start(args):
         old_started = int(state.get("started_epoch", 0))
         old_duration = int(state.get("duration", 0))
         old_elapsed = now - old_started
-        # Only log STOP if the old timer hadn't already expired
+        old_duration_mins = old_duration // 60
+        # If old timer hadn't expired, mark as stopped; otherwise mark complete
         if old_elapsed < old_duration:
-            old_duration_mins = old_duration // 60
-            log_event(
-                "STOP",
-                str(old_duration_mins),
-                old_task,
-            )
+            log_end(old_started, old_duration_mins, old_task, completed=False)
+        else:
+            log_end(old_started, old_duration_mins, old_task, completed=True)
 
     atomic_write(LAST_FILE, {"duration": duration_mins, "task": task})
 
@@ -193,7 +318,7 @@ def cmd_start(args):
     )
 
     config = read_config()
-    log_event("START", str(duration_mins), task)
+    log_start(now, duration_mins, task)
     notify("Boxed", f"Timer started: {duration_mins}m — {task}")
     if config["notify_sound"] == "true":
         play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonReady1.ogg")
@@ -220,7 +345,7 @@ def cmd_complete(args):
     duration_mins = duration // 60
     config = read_config()
 
-    log_event("COMPLETE", str(duration_mins), task)
+    log_end(started, duration_mins, task, completed=True)
     notify("Boxed", f"Time's up! — {task}")
     if config["notify_sound"] == "true":
         play_sound(sound_name="Glass")
@@ -256,19 +381,16 @@ def cmd_stop(args):
     elapsed = now - started
     duration_mins = duration // 60
 
-    # Timer already expired — just clean up, no log/notification
+    # Timer already expired — finalize the partial log entry and clean up
     if elapsed >= duration:
+        log_end(started, duration_mins, task, completed=True)
         clear_state()
         print(f"Cleared ended timer: {task}")
         return
 
     config = read_config()
     clear_state()
-    log_event(
-        "STOP",
-        str(duration_mins),
-        task,
-    )
+    log_end(started, duration_mins, task, completed=False)
     elapsed_str = format_elapsed(elapsed)
     notify("Boxed", f"Timer stopped: {task} ({elapsed_str} elapsed)")
     if config["notify_sound"] == "true":
