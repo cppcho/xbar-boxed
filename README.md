@@ -1,6 +1,6 @@
 # Boxed
 
-A timeboxing countdown timer that lives in your macOS menu bar, built as an [xbar](https://xbarapp.com/) plugin.
+A timeboxing countdown timer that lives in your macOS menu bar. I vibe-coded this for my own use because I found myself constantly getting distracted by other incoming tasks.
 
 ## Usage
 
@@ -16,7 +16,7 @@ The menu bar shows the task name and remaining time while a timer is running. Wh
 
 ## Install
 
-Requires [xbar](https://xbarapp.com/) and Python 3.
+Requires [xbar](https://xbarapp.com/) and Python 3 and stow installed
 
 ```bash
 # Uses GNU Stow to symlink files into place
