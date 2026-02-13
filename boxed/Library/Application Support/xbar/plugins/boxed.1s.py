@@ -24,6 +24,27 @@ BOXED_PY = Path.home() / "bin" / "boxed.py"
 PYTHON = sys.executable or "/usr/bin/python3"
 
 
+def read_config():
+    config = {}
+    if CONFIG_FILE.exists():
+        for line in CONFIG_FILE.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                config[key.strip()] = value.strip()
+    return config
+
+
+def play_tick():
+    subprocess.Popen(
+        ["afplay", "/System/Library/Sounds/Tink.aiff"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
 def main():
     state = read_state()
 
@@ -41,6 +62,13 @@ def main():
                 state = read_state()
             out("📦")
         else:
+            config = read_config()
+            tick_interval = int(config.get("tick_interval", "0"))
+            if tick_interval > 0:
+                elapsed = now - started
+                interval_secs = tick_interval * 60
+                if elapsed > 0 and elapsed % interval_secs == 0:
+                    play_tick()
             out(f"{task} ({format_remaining(remaining)})")
         out("---")
     else:

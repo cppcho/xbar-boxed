@@ -25,6 +25,7 @@ CONFIG_FILE = CONFIG_DIR / "config"
 DEFAULT_CONFIG = """\
 # Boxed configuration
 # notify_sound = true
+# tick_interval = 5
 """
 
 
