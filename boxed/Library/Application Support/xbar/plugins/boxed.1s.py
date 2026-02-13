@@ -93,7 +93,9 @@ def main():
     out(f"Open Config | bash=/usr/bin/open param1={CONFIG_FILE} terminal=false")
     out(f"Open Log | bash=/usr/bin/open param1={LOG_FILE} terminal=false")
     out("---")
-    out(f"Open Config Directory | bash=/usr/bin/open param1={CONFIG_DIR} terminal=false")
+    out(
+        f"Open Config Directory | bash=/usr/bin/open param1={CONFIG_DIR} terminal=false"
+    )
 
 
 def read_state():
