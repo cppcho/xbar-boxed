@@ -193,40 +193,43 @@ def _migrate_log_if_needed():
         started = int(state["started_epoch"])
         duration = int(state.get("duration", 0))
         task = state.get("task", "Untitled")
-        duration_mins = duration // 60
         dt = datetime.fromtimestamp(started)
         date_str = dt.strftime("%Y-%m-%d")
         time_str = dt.strftime("%H:%M:%S")
-        entry = f"{time_str} - ... {task} ({duration_mins} min)"
+        entry = f"{time_str} - ... {task} ({format_elapsed(duration)})"
         new_content = _insert_entry_in_log("", date_str, entry)
         _write_log(new_content)
 
 
-def log_start(started_epoch, duration_mins, task):
+def log_start(started_epoch, duration_secs, task):
     """Log a partial entry for a timer that just started."""
     ensure_dirs()
     _migrate_log_if_needed()
     dt = datetime.fromtimestamp(started_epoch)
     date_str = dt.strftime("%Y-%m-%d")
     time_str = dt.strftime("%H:%M:%S")
-    entry = f"{time_str} - ... {task} ({duration_mins} min)"
+    entry = f"{time_str} - ... {task} ({format_elapsed(duration_secs)})"
     content = _read_log()
     content = _insert_entry_in_log(content, date_str, entry)
     _write_log(content)
 
 
-def log_end(started_epoch, duration_mins, task, completed):
+def log_end(started_epoch, duration_secs, task, completed):
     """Update a partial log entry to its final form, or append if not found."""
     ensure_dirs()
     _migrate_log_if_needed()
     dt = datetime.fromtimestamp(started_epoch)
     date_str = dt.strftime("%Y-%m-%d")
     start_time = dt.strftime("%H:%M:%S")
-    end_time = datetime.now().strftime("%H:%M:%S")
+    now = int(time.time())
+    end_time = datetime.fromtimestamp(now).strftime("%H:%M:%S")
     symbol = "✓" if completed else "✕"
+    elapsed = now - int(started_epoch)
+    configured_dur = format_elapsed(duration_secs)
+    elapsed_dur = format_elapsed(elapsed)
 
-    partial = f"{start_time} - ... {task} ({duration_mins} min)"
-    final = f"{start_time} - {end_time} {task} ({duration_mins} min) {symbol}"
+    partial = f"{start_time} - ... {task} ({configured_dur})"
+    final = f"{start_time} - {end_time} {task} ({elapsed_dur}) {symbol}"
 
     content = _read_log()
     if partial in content:
@@ -301,12 +304,11 @@ def cmd_start(args):
         old_started = int(state.get("started_epoch", 0))
         old_duration = int(state.get("duration", 0))
         old_elapsed = now - old_started
-        old_duration_mins = old_duration // 60
         # If old timer hadn't expired, mark as stopped; otherwise mark complete
         if old_elapsed < old_duration:
-            log_end(old_started, old_duration_mins, old_task, completed=False)
+            log_end(old_started, old_duration, old_task, completed=False)
         else:
-            log_end(old_started, old_duration_mins, old_task, completed=True)
+            log_end(old_started, old_duration, old_task, completed=True)
 
     atomic_write(LAST_FILE, {"duration": duration_mins, "task": task})
 
@@ -318,7 +320,7 @@ def cmd_start(args):
     )
 
     config = read_config()
-    log_start(now, duration_mins, task)
+    log_start(now, duration_secs, task)
     notify("Boxed", f"Timer started: {duration_mins}m — {task}")
     if config["notify_sound"] == "true":
         play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonReady1.ogg")
@@ -342,10 +344,9 @@ def cmd_complete(args):
         return
 
     task = state.get("task", "Untitled")
-    duration_mins = duration // 60
     config = read_config()
 
-    log_end(started, duration_mins, task, completed=True)
+    log_end(started, duration, task, completed=True)
     notify("Boxed", f"Time's up! — {task}")
     if config["notify_sound"] == "true":
         play_sound(sound_name="Glass")
@@ -379,18 +380,16 @@ def cmd_stop(args):
     started = int(state.get("started_epoch", 0))
     duration = int(state.get("duration", 0))
     elapsed = now - started
-    duration_mins = duration // 60
-
     # Timer already expired — finalize the partial log entry and clean up
     if elapsed >= duration:
-        log_end(started, duration_mins, task, completed=True)
+        log_end(started, duration, task, completed=True)
         clear_state()
         print(f"Cleared ended timer: {task}")
         return
 
     config = read_config()
     clear_state()
-    log_end(started, duration_mins, task, completed=False)
+    log_end(started, duration, task, completed=False)
     elapsed_str = format_elapsed(elapsed)
     notify("Boxed", f"Timer stopped: {task} ({elapsed_str} elapsed)")
     if config["notify_sound"] == "true":
