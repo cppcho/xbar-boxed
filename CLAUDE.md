@@ -30,3 +30,9 @@ Uses GNU Stow to symlink the `boxed/` directory tree into `~`:
 ```
 uvx ruff check .
 ```
+
+## Formatting
+
+```
+uvx ruff format .
+```
