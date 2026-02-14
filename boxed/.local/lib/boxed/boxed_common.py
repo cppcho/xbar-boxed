@@ -12,6 +12,7 @@ STATE_FILE = CONFIG_DIR / "state.json"
 CONFIG_FILE = CONFIG_DIR / "config"
 LOG_FILE = CONFIG_DIR / "log"
 LAST_FILE = CONFIG_DIR / "last.json"
+SOUNDS_DIR = Path(__file__).resolve().parent / "sounds"
 
 
 def read_config(defaults=None):

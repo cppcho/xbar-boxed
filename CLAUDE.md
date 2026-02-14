@@ -25,6 +25,12 @@ Uses GNU Stow to symlink the `boxed/` directory tree into `~`:
 ./install.sh    # runs: stow -v -R -t ~ "boxed"
 ```
 
+## Testing
+
+```
+make test
+```
+
 ## Linting
 
 ```

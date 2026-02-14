@@ -20,6 +20,7 @@ from boxed_common import (
     STATE_FILE,
     CONFIG_FILE,
     LOG_FILE,
+    SOUNDS_DIR,
     atomic_write,
     format_duration,
     play_sound,
@@ -54,7 +55,7 @@ def main():
                 interval_secs = tick_interval * 60
                 last_tick = state.get("last_tick_epoch") or started
                 if now - last_tick >= interval_secs:
-                    play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonYes3.ogg")
+                    play_sound(sound_file=SOUNDS_DIR / "PeonYes3.ogg")
                     state["last_tick_epoch"] = now
                     atomic_write(STATE_FILE, state)
             out(f"{task} ({format_duration(remaining)})")

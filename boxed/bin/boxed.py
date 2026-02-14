@@ -24,6 +24,7 @@ from boxed_common import (
     CONFIG_FILE,
     LOG_FILE,
     LAST_FILE,
+    SOUNDS_DIR,
     atomic_write,
     format_duration,
     play_sound,
@@ -267,7 +268,7 @@ def cmd_start(args):
     log_start(now, duration_secs, task)
     notify("Boxed", f"Timer started: {duration_mins}m — {task}")
     if config["notify_sound"] == "true":
-        play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonReady1.ogg")
+        play_sound(sound_file=SOUNDS_DIR / "PeonReady1.ogg")
     print(f"Timer started: {duration_mins}m — {task}")
 
 
