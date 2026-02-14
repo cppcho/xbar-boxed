@@ -148,34 +148,9 @@ def _insert_entry_in_log(content, date_str, entry_line):
     return result
 
 
-def _migrate_log_if_needed():
-    """If the log is in old format, rename to log.old and start fresh."""
-    if not LOG_FILE.exists():
-        return
-    content = _read_log()
-    if not content or content.startswith("#"):
-        return
-    # Old format detected — rename
-    old_path = CONFIG_DIR / "log.old"
-    os.replace(LOG_FILE, old_path)
-    # If a timer is currently running, write its partial entry
-    state = read_state()
-    if state and state.get("started_epoch"):
-        started = int(state["started_epoch"])
-        duration = int(state.get("duration", 0))
-        task = state.get("task", "Untitled")
-        dt = datetime.fromtimestamp(started)
-        date_str = dt.strftime("%Y-%m-%d")
-        time_str = dt.strftime("%H:%M:%S")
-        entry = f"{time_str} - ... {task} ({format_duration(duration)})"
-        new_content = _insert_entry_in_log("", date_str, entry)
-        _write_log(new_content)
-
-
 def log_start(started_epoch, duration_secs, task):
     """Log a partial entry for a timer that just started."""
     ensure_dirs()
-    _migrate_log_if_needed()
     dt = datetime.fromtimestamp(started_epoch)
     date_str = dt.strftime("%Y-%m-%d")
     time_str = dt.strftime("%H:%M:%S")
@@ -188,7 +163,6 @@ def log_start(started_epoch, duration_secs, task):
 def log_end(started_epoch, duration_secs, task, completed):
     """Update a partial log entry to its final form, or append if not found."""
     ensure_dirs()
-    _migrate_log_if_needed()
     dt = datetime.fromtimestamp(started_epoch)
     date_str = dt.strftime("%Y-%m-%d")
     start_time = dt.strftime("%H:%M:%S")
