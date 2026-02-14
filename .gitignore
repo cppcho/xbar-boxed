@@ -18,6 +18,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!boxed/.local/lib/
+!boxed/.local/lib/boxed/
 lib64/
 parts/
 sdist/

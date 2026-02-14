@@ -9,54 +9,26 @@
 # <xbar.desc>Timeboxing countdown timer</xbar.desc>
 # <xbar.dependencies>python</xbar.dependencies>
 
-import json
-import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
-CONFIG_DIR = Path.home() / ".config" / "boxed"
-STATE_FILE = CONFIG_DIR / "state.json"
-CONFIG_FILE = CONFIG_DIR / "config"
-LOG_FILE = CONFIG_DIR / "log"
+sys.path.insert(0, str(Path.home() / ".local" / "lib" / "boxed"))
+from boxed_common import (
+    CONFIG_DIR,
+    STATE_FILE,
+    CONFIG_FILE,
+    LOG_FILE,
+    atomic_write,
+    format_duration,
+    play_sound,
+    read_config,
+    read_state,
+)
 
 BOXED_PY = Path.home() / "bin" / "boxed.py"
 PYTHON = sys.executable or "/usr/bin/python3"
-
-
-def read_config():
-    config = {}
-    if CONFIG_FILE.exists():
-        for line in CONFIG_FILE.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, value = line.split("=", 1)
-                config[key.strip()] = value.strip()
-    return config
-
-
-def atomic_write(filepath, data):
-    dir_name = os.path.dirname(filepath) or "."
-    with tempfile.NamedTemporaryFile(
-        "w", dir=dir_name, delete=False, suffix=".tmp"
-    ) as tmp:
-        json.dump(data, tmp, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-        tmp_path = tmp.name
-    os.replace(tmp_path, filepath)
-
-
-def play_tick():
-    subprocess.Popen(
-        ["afplay", str(CONFIG_DIR / "sounds" / "PeonYes3.ogg")],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
 
 
 def main():
@@ -82,10 +54,10 @@ def main():
                 interval_secs = tick_interval * 60
                 last_tick = state.get("last_tick_epoch") or started
                 if now - last_tick >= interval_secs:
-                    play_tick()
+                    play_sound(sound_file=CONFIG_DIR / "sounds" / "PeonYes3.ogg")
                     state["last_tick_epoch"] = now
                     atomic_write(STATE_FILE, state)
-            out(f"{task} ({format_remaining(remaining)})")
+            out(f"{task} ({format_duration(remaining)})")
         out("---")
     else:
         out("📦")
@@ -96,31 +68,6 @@ def main():
     out(
         f"Open Config Directory | bash=/usr/bin/open param1={CONFIG_DIR} terminal=false"
     )
-
-
-def read_state():
-    if not STATE_FILE.exists():
-        return None
-    try:
-        with open(STATE_FILE, "r") as f:
-            state = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return None
-    return state
-
-
-def format_remaining(seconds):
-    """Menu bar display: '1h', '10m', '53s'."""
-    if seconds >= 3600:
-        h = seconds // 3600
-        m = (seconds % 3600) // 60
-        if m > 0:
-            return f"{h}h{m}m"
-        return f"{h}h"
-    elif seconds >= 60:
-        return f"{seconds // 60}m"
-    else:
-        return f"{seconds}s"
 
 
 def out(text):

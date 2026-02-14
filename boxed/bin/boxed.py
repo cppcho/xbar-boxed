@@ -7,20 +7,28 @@ Usage:
     boxed again
 """
 
+import json
 import os
 import subprocess
 import sys
-import time
-import json
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 
-CONFIG_DIR = Path.home() / ".config" / "boxed"
-STATE_FILE = CONFIG_DIR / "state.json"
-LOG_FILE = CONFIG_DIR / "log"
-LAST_FILE = CONFIG_DIR / "last.json"
-CONFIG_FILE = CONFIG_DIR / "config"
+sys.path.insert(0, str(Path.home() / ".local" / "lib" / "boxed"))
+import boxed_common
+from boxed_common import (
+    CONFIG_DIR,
+    STATE_FILE,
+    CONFIG_FILE,
+    LOG_FILE,
+    LAST_FILE,
+    atomic_write,
+    format_duration,
+    play_sound,
+    read_state,
+)
 
 DEFAULT_CONFIG = """\
 # Boxed configuration
@@ -40,45 +48,7 @@ def ensure_config():
 
 
 def read_config():
-    config = {
-        "notify_sound": "true",
-    }
-    if CONFIG_FILE.exists():
-        for line in CONFIG_FILE.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" in line:
-                key, value = line.split("=", 1)
-                config[key.strip()] = value.strip()
-    return config
-
-
-def read_state():
-    """Read current timer state. Returns dict or None if no timer running."""
-    if not STATE_FILE.exists():
-        return None
-    state = {}
-    try:
-        with open(STATE_FILE, "r") as f:
-            state = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"Error reading state: {e}", file=sys.stderr)
-        return None
-    return state
-
-
-def atomic_write(filepath, data):
-    # Write to temp file in the same directory
-    dir_name = os.path.dirname(filepath) or "."
-    with tempfile.NamedTemporaryFile(
-        "w", dir=dir_name, delete=False, suffix=".tmp"
-    ) as tmp:
-        json.dump(data, tmp, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())  # ensure data hits disk
-        tmp_path = tmp.name
-    os.replace(tmp_path, filepath)  # atomic rename (cross-platform)
+    return boxed_common.read_config(defaults={"notify_sound": "true"})
 
 
 def write_state(*, task=None, started_epoch=None, duration=None):
@@ -196,7 +166,7 @@ def _migrate_log_if_needed():
         dt = datetime.fromtimestamp(started)
         date_str = dt.strftime("%Y-%m-%d")
         time_str = dt.strftime("%H:%M:%S")
-        entry = f"{time_str} - ... {task} ({format_elapsed(duration)})"
+        entry = f"{time_str} - ... {task} ({format_duration(duration)})"
         new_content = _insert_entry_in_log("", date_str, entry)
         _write_log(new_content)
 
@@ -208,7 +178,7 @@ def log_start(started_epoch, duration_secs, task):
     dt = datetime.fromtimestamp(started_epoch)
     date_str = dt.strftime("%Y-%m-%d")
     time_str = dt.strftime("%H:%M:%S")
-    entry = f"{time_str} - ... {task} ({format_elapsed(duration_secs)})"
+    entry = f"{time_str} - ... {task} ({format_duration(duration_secs)})"
     content = _read_log()
     content = _insert_entry_in_log(content, date_str, entry)
     _write_log(content)
@@ -225,8 +195,8 @@ def log_end(started_epoch, duration_secs, task, completed):
     end_time = datetime.fromtimestamp(now).strftime("%H:%M:%S")
     symbol = "✓" if completed else "✕"
     elapsed = now - int(started_epoch)
-    configured_dur = format_elapsed(duration_secs)
-    elapsed_dur = format_elapsed(elapsed)
+    configured_dur = format_duration(duration_secs)
+    elapsed_dur = format_duration(elapsed)
 
     partial = f"{start_time} - ... {task} ({configured_dur})"
     final = f"{start_time} - {end_time} {task} ({elapsed_dur}) {symbol}"
@@ -241,21 +211,6 @@ def log_end(started_epoch, duration_secs, task, completed):
         _write_log(content)
 
 
-def play_sound(sound_name=None, sound_file=None):
-    """Play a macOS system sound by name or a custom sound file."""
-    if sound_name:
-        path = f"/System/Library/Sounds/{sound_name}.aiff"
-    elif sound_file:
-        path = str(sound_file)
-    else:
-        return
-    subprocess.Popen(
-        ["afplay", path],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-
-
 def notify(title, message):
     # Escape backslashes and double quotes for AppleScript string literals
     safe_title = title.replace("\\", "\\\\").replace('"', '\\"')
@@ -265,17 +220,6 @@ def notify(title, message):
         ["osascript", "-e", script],
         capture_output=True,
     )
-
-
-def format_elapsed(seconds):
-    if seconds >= 3600:
-        h = seconds // 3600
-        m = (seconds % 3600) // 60
-        return f"{h}h{m}m" if m > 0 else f"{h}h"
-    elif seconds >= 60:
-        return f"{seconds // 60}m"
-    else:
-        return f"{seconds}s"
 
 
 def cmd_start(args):
@@ -390,7 +334,7 @@ def cmd_stop(args):
     config = read_config()
     clear_state()
     log_end(started, duration, task, completed=False)
-    elapsed_str = format_elapsed(elapsed)
+    elapsed_str = format_duration(elapsed)
     notify("Boxed", f"Timer stopped: {task} ({elapsed_str} elapsed)")
     if config["notify_sound"] == "true":
         play_sound(sound_name="Sosumi")

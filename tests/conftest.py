@@ -2,12 +2,21 @@
 
 import importlib.util
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
+COMMON_PY = (
+    Path(__file__).resolve().parent.parent
+    / "boxed"
+    / ".local"
+    / "lib"
+    / "boxed"
+    / "boxed_common.py"
+)
 BOXED_PY = Path(__file__).resolve().parent.parent / "boxed" / "bin" / "boxed.py"
 XBAR_PY = (
     Path(__file__).resolve().parent.parent
@@ -30,12 +39,19 @@ def _load_module(name, path):
 
 
 @pytest.fixture(scope="session")
-def boxed_module():
+def common_module():
+    mod = _load_module("boxed_common", COMMON_PY)
+    sys.modules["boxed_common"] = mod
+    return mod
+
+
+@pytest.fixture(scope="session")
+def boxed_module(common_module):
     return _load_module("boxed_cli", BOXED_PY)
 
 
 @pytest.fixture(scope="session")
-def xbar_module():
+def xbar_module(common_module):
     return _load_module("boxed_1s", XBAR_PY)
 
 
@@ -54,20 +70,23 @@ class Env:
 
 
 @pytest.fixture()
-def boxed_env(boxed_module, tmp_path, monkeypatch):
+def boxed_env(boxed_module, common_module, tmp_path, monkeypatch):
     config_dir = tmp_path / ".config" / "boxed"
     config_dir.mkdir(parents=True)
 
     mod = boxed_module
-    monkeypatch.setattr(mod, "CONFIG_DIR", config_dir)
-    monkeypatch.setattr(mod, "STATE_FILE", config_dir / "state.json")
-    monkeypatch.setattr(mod, "LOG_FILE", config_dir / "log")
+    for m in (mod, common_module):
+        monkeypatch.setattr(m, "CONFIG_DIR", config_dir)
+        monkeypatch.setattr(m, "STATE_FILE", config_dir / "state.json")
+        monkeypatch.setattr(m, "CONFIG_FILE", config_dir / "config")
+        monkeypatch.setattr(m, "LOG_FILE", config_dir / "log")
     monkeypatch.setattr(mod, "LAST_FILE", config_dir / "last.json")
-    monkeypatch.setattr(mod, "CONFIG_FILE", config_dir / "config")
+    monkeypatch.setattr(common_module, "LAST_FILE", config_dir / "last.json")
 
     mock_sub = MagicMock(spec=subprocess)
     mock_sub.DEVNULL = subprocess.DEVNULL
     monkeypatch.setattr(mod, "subprocess", mock_sub)
+    monkeypatch.setattr(common_module, "subprocess", mock_sub)
 
     return Env(
         mod=mod,
@@ -80,19 +99,21 @@ def boxed_env(boxed_module, tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def xbar_env(xbar_module, tmp_path, monkeypatch):
+def xbar_env(xbar_module, common_module, tmp_path, monkeypatch):
     config_dir = tmp_path / ".config" / "boxed"
     config_dir.mkdir(parents=True)
 
     mod = xbar_module
-    monkeypatch.setattr(mod, "CONFIG_DIR", config_dir)
-    monkeypatch.setattr(mod, "STATE_FILE", config_dir / "state.json")
-    monkeypatch.setattr(mod, "CONFIG_FILE", config_dir / "config")
-    monkeypatch.setattr(mod, "LOG_FILE", config_dir / "log")
+    for m in (mod, common_module):
+        monkeypatch.setattr(m, "CONFIG_DIR", config_dir)
+        monkeypatch.setattr(m, "STATE_FILE", config_dir / "state.json")
+        monkeypatch.setattr(m, "CONFIG_FILE", config_dir / "config")
+        monkeypatch.setattr(m, "LOG_FILE", config_dir / "log")
 
     mock_sub = MagicMock(spec=subprocess)
     mock_sub.DEVNULL = subprocess.DEVNULL
     monkeypatch.setattr(mod, "subprocess", mock_sub)
+    monkeypatch.setattr(common_module, "subprocess", mock_sub)
 
     return Env(
         mod=mod,
