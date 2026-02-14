@@ -1,16 +1,20 @@
-.PHONY: install sync test lint format
+.PHONY: build install test lint clean
 
-install:
-	./install.sh
+build:
+	go build -o boxed ./cmd/boxed
+	go build -o boxed-xbar ./cmd/boxed-xbar
 
-sync:
-	uv sync
+install: build
+	cp boxed ~/bin/boxed
+	cp boxed-xbar ~/Library/Application\ Support/xbar/plugins/boxed.1s
+	mkdir -p ~/.local/lib/boxed/sounds
+	cp sounds/*.ogg ~/.local/lib/boxed/sounds/
 
 test:
-	uv run pytest tests/ -v
+	go test ./... -v
 
 lint:
-	uvx ruff check .
+	go vet ./...
 
-format:
-	uvx ruff format .
+clean:
+	rm -f boxed boxed-xbar
