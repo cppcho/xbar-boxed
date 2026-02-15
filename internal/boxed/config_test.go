@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestReadConfig_MissingFileReturnsDefaults(t *testing.T) {
@@ -12,7 +13,7 @@ func TestReadConfig_MissingFileReturnsDefaults(t *testing.T) {
 		t.Error("expected NotifySound=true")
 	}
 	if config.TickInterval != 0 {
-		t.Errorf("expected TickInterval=0, got %d", config.TickInterval)
+		t.Errorf("expected TickInterval=0, got %v", config.TickInterval)
 	}
 }
 
@@ -54,13 +55,13 @@ func TestReadConfig_WhitespaceTrimmed(t *testing.T) {
 
 func TestReadConfig_MultipleKeys(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "config")
-	os.WriteFile(f, []byte("notify_sound = false\ntick_interval = 5\n"), 0o644)
+	os.WriteFile(f, []byte("notify_sound = false\ntick_interval = 5m\n"), 0o644)
 	config := ReadConfig(f)
 	if config.NotifySound {
 		t.Error("expected NotifySound=false")
 	}
-	if config.TickInterval != 5 {
-		t.Errorf("expected TickInterval=5, got %d", config.TickInterval)
+	if config.TickInterval != 5*time.Minute {
+		t.Errorf("expected TickInterval=5m, got %v", config.TickInterval)
 	}
 }
 

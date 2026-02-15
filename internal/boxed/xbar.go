@@ -38,12 +38,11 @@ func (x *XbarApp) Run() {
 		} else {
 			config := ReadConfig(x.Paths.ConfigFile)
 			if config.TickInterval > 0 {
-				intervalDur := time.Duration(config.TickInterval) * time.Minute
 				lastTick := timer.LastTickAt
 				if timer.LastTickAt.IsZero() {
 					lastTick = timer.StartedAt
 				}
-				if now.Sub(lastTick) >= intervalDur {
+				if now.Sub(lastTick) >= config.TickInterval {
 					// TODO: should i change sound?
 					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
 					timer.LastTickAt = now

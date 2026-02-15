@@ -2,14 +2,14 @@ package boxed
 
 import (
 	"os"
-	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds typed configuration values.
 type Config struct {
-	NotifySound  bool // default: true
-	TickInterval int  // minutes, default: 0 (disabled)
+	NotifySound  bool          // default: true
+	TickInterval time.Duration // minutes, default: 0 (disabled)
 }
 
 // DefaultConfig returns the default configuration.
@@ -19,7 +19,7 @@ func DefaultConfig() Config {
 
 const defaultConfigContent = `# Boxed configuration
 # notify_sound = true
-# tick_interval = 5
+# tick_interval = 5m
 `
 
 // ReadConfig reads a key=value config file into a typed Config struct.
@@ -48,9 +48,8 @@ func ReadConfig(configFile string) Config {
 					config.NotifySound = false
 				}
 			case "tick_interval":
-				num, err := strconv.Atoi(value)
-				if err == nil {
-					config.TickInterval = num
+				if tickInterval, err := time.ParseDuration(value); err == nil {
+					config.TickInterval = tickInterval
 				}
 			}
 		}

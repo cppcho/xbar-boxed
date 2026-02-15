@@ -148,7 +148,7 @@ func TestXbar_TickPlaysWhenIntervalReached(t *testing.T) {
 		StartedAt: now,
 		Duration:  25 * time.Minute,
 	})
-	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5\n"), 0o644)
+	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5m\n"), 0o644)
 	x.NowFunc = func() time.Time { return now.Add(300 * time.Second) }
 	x.Run()
 
@@ -165,7 +165,7 @@ func TestXbar_NoTickBeforeInterval(t *testing.T) {
 		StartedAt: now,
 		Duration:  25 * time.Minute,
 	})
-	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5\n"), 0o644)
+	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5m\n"), 0o644)
 	x.NowFunc = func() time.Time { return now.Add(60 * time.Second) }
 	x.Run()
 
