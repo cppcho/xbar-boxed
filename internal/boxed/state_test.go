@@ -14,7 +14,6 @@ func testPaths(t *testing.T) Paths {
 		StateFile:  filepath.Join(dir, "state.json"),
 		ConfigFile: filepath.Join(dir, "config"),
 		LogFile:    filepath.Join(dir, "log"),
-		LastFile:   filepath.Join(dir, "last.json"),
 		SoundsDir:  filepath.Join(dir, "sounds"),
 	}
 }
@@ -63,97 +62,114 @@ func TestAtomicWriteJSON_NoLeftoverTmpFiles(t *testing.T) {
 	}
 }
 
-func TestWriteState_WritesStateFile(t *testing.T) {
+func TestWriteStateKey_WritesKey(t *testing.T) {
 	p := testPaths(t)
-	if err := WriteState(p, "test", 1000, 300); err != nil {
+	timer := &Timer{Task: "test", StartedEpoch: 1000, Duration: 300}
+	if err := WriteStateKey(p, "current", timer); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(p.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if s.Task != "test" || s.StartedEpoch != 1000 || s.Duration != 300 {
-		t.Errorf("unexpected state: %+v", s)
+	var got Timer
+	if !ReadStateKey(p.StateFile, "current", &got) {
+		t.Fatal("expected to read current key")
+	}
+	if got.Task != "test" || got.StartedEpoch != 1000 || got.Duration != 300 {
+		t.Errorf("unexpected timer: %+v", got)
 	}
 }
 
-func TestWriteState_CreatesConfigDir(t *testing.T) {
+func TestWriteStateKey_PreservesOtherKeys(t *testing.T) {
+	p := testPaths(t)
+	WriteStateKey(p, "current", &Timer{Task: "work", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, "last", &LastTimer{Duration: 1, Task: "work"})
+
+	var timer Timer
+	if !ReadStateKey(p.StateFile, "current", &timer) {
+		t.Fatal("expected current key to be preserved")
+	}
+	if timer.Task != "work" {
+		t.Errorf("expected task='work', got %q", timer.Task)
+	}
+}
+
+func TestWriteStateKey_CreatesConfigDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "new", "config")
 	p := Paths{ConfigDir: dir, StateFile: filepath.Join(dir, "state.json")}
-	WriteState(p, "t", 1, 60)
+	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
 	if _, err := os.Stat(filepath.Join(dir, "state.json")); err != nil {
 		t.Errorf("state file not created: %v", err)
 	}
 }
 
-func TestReadState_NoFileReturnsNil(t *testing.T) {
-	if s := ReadState("/nonexistent"); s != nil {
-		t.Errorf("expected nil, got %+v", s)
+func TestReadStateKey_NoFileReturnsFalse(t *testing.T) {
+	var timer Timer
+	if ReadStateKey("/nonexistent", "current", &timer) {
+		t.Error("expected false for missing file")
 	}
 }
 
-func TestReadState_ReadsValidState(t *testing.T) {
+func TestReadStateKey_MissingKeyReturnsFalse(t *testing.T) {
 	p := testPaths(t)
-	WriteState(p, "hello", 500, 120)
-	s := ReadState(p.StateFile)
-	if s == nil {
-		t.Fatal("expected non-nil state")
-	}
-	if s.Task != "hello" || s.Duration != 120 {
-		t.Errorf("unexpected state: %+v", s)
+	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	var lt LastTimer
+	if ReadStateKey(p.StateFile, "last", &lt) {
+		t.Error("expected false for missing key")
 	}
 }
 
-func TestReadState_CorruptJSONReturnsNil(t *testing.T) {
+func TestReadStateKey_CorruptJSONReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte("{invalid json"), 0o644)
-	if s := ReadState(p.StateFile); s != nil {
-		t.Errorf("expected nil for corrupt JSON, got %+v", s)
+	var timer Timer
+	if ReadStateKey(p.StateFile, "current", &timer) {
+		t.Error("expected false for corrupt JSON")
 	}
 }
 
-func TestReadState_EmptyFileReturnsNil(t *testing.T) {
+func TestReadStateKey_EmptyFileReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte(""), 0o644)
-	if s := ReadState(p.StateFile); s != nil {
-		t.Errorf("expected nil for empty file, got %+v", s)
+	var timer Timer
+	if ReadStateKey(p.StateFile, "current", &timer) {
+		t.Error("expected false for empty file")
 	}
 }
 
-func TestClearState_RemovesFile(t *testing.T) {
+func TestClearStateKey_PreservesOtherKeys(t *testing.T) {
 	p := testPaths(t)
-	WriteState(p, "t", 1, 60)
-	if err := ClearState(p); err != nil {
+	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, "last", &LastTimer{Duration: 1, Task: "t"})
+
+	if err := ClearStateKey(p, "current"); err != nil {
+		t.Fatal(err)
+	}
+	var timer Timer
+	if ReadStateKey(p.StateFile, "current", &timer) {
+		t.Error("expected current to be gone")
+	}
+	var lt LastTimer
+	if !ReadStateKey(p.StateFile, "last", &lt) {
+		t.Fatal("expected last to be preserved")
+	}
+	if lt.Task != "t" {
+		t.Errorf("expected task='t', got %q", lt.Task)
+	}
+}
+
+func TestClearStateKey_RemovesFileWhenEmpty(t *testing.T) {
+	p := testPaths(t)
+	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+
+	if err := ClearStateKey(p, "current"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(p.StateFile); !os.IsNotExist(err) {
-		t.Error("state file still exists after clear")
+		t.Error("state file should be removed when no keys remain")
 	}
 }
 
-func TestClearState_NoFile(t *testing.T) {
+func TestClearStateKey_NoFile(t *testing.T) {
 	p := testPaths(t)
-	if err := ClearState(p); err != nil {
+	if err := ClearStateKey(p, "current"); err != nil {
 		t.Errorf("clear with no file should not error: %v", err)
-	}
-}
-
-func TestReadLastTimer(t *testing.T) {
-	p := testPaths(t)
-	WriteLastTimer(p, 25, "my task")
-	lt, err := ReadLastTimer(p.LastFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if lt.Duration != 25 || lt.Task != "my task" {
-		t.Errorf("unexpected last timer: %+v", lt)
-	}
-}
-
-func TestReadLastTimer_CorruptFile(t *testing.T) {
-	p := testPaths(t)
-	os.WriteFile(p.LastFile, []byte("{bad json"), 0o644)
-	_, err := ReadLastTimer(p.LastFile)
-	if err == nil {
-		t.Error("expected error for corrupt last file")
 	}
 }

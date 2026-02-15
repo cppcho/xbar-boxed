@@ -18,37 +18,36 @@ type XbarApp struct {
 
 // Run renders the xbar menu bar output.
 func (x *XbarApp) Run() {
-	state := ReadState(x.Paths.StateFile)
+	var timer Timer
+	hasTimer := ReadStateKey(x.Paths.StateFile, "current", &timer)
 
-	if state != nil {
-		task := state.Task
+	if hasTimer {
+		task := timer.Task
 		if task == "" {
 			task = "Untitled"
 		}
 		now := x.NowFunc()
-		started := time.Unix(state.StartedEpoch, 0)
-		duration := time.Duration(state.Duration) * time.Second
+		started := time.Unix(timer.StartedEpoch, 0)
+		duration := time.Duration(timer.Duration) * time.Second
 		remaining := duration - now.Sub(started)
 
 		if remaining <= 0 {
-			if !state.Notified {
+			if !timer.Notified {
 				x.Runner.Run(x.BoxedBin, "complete")
-				// Re-read state after complete
-				state = ReadState(x.Paths.StateFile)
 			}
 			x.out("📦")
 		} else {
 			config := ReadConfig(x.Paths.ConfigFile)
 			if config.TickInterval > 0 {
 				intervalDur := time.Duration(config.TickInterval) * time.Minute
-				lastTick := time.Unix(state.LastTickEpoch, 0)
-				if state.LastTickEpoch == 0 {
+				lastTick := time.Unix(timer.LastTickEpoch, 0)
+				if timer.LastTickEpoch == 0 {
 					lastTick = started
 				}
 				if now.Sub(lastTick) >= intervalDur {
 					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
-					state.LastTickEpoch = now.Unix()
-					WriteStateFull(x.Paths, state)
+					timer.LastTickEpoch = now.Unix()
+					WriteStateKey(x.Paths, "current", &timer)
 				}
 			}
 			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(remaining)))

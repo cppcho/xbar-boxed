@@ -8,12 +8,11 @@ import (
 // Paths holds all filesystem paths used by Boxed.
 // Tests substitute these with temp directory paths.
 type Paths struct {
-	ConfigDir string
-	StateFile string
+	ConfigDir  string
+	StateFile  string
 	ConfigFile string
-	LogFile   string
-	LastFile  string
-	SoundsDir string
+	LogFile    string
+	SoundsDir  string
 }
 
 // DefaultPaths returns production paths under ~/.config/boxed.
@@ -28,7 +27,6 @@ func DefaultPaths() Paths {
 		StateFile:  filepath.Join(configDir, "state.json"),
 		ConfigFile: filepath.Join(configDir, "config"),
 		LogFile:    filepath.Join(configDir, "log"),
-		LastFile:   filepath.Join(configDir, "last.json"),
 		SoundsDir:  soundsDir,
 	}
 }

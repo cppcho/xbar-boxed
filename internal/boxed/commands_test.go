@@ -2,9 +2,7 @@ package boxed
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -32,27 +30,29 @@ func TestCmdStart_Basic(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "my", "task"})
 
-	data, _ := os.ReadFile(app.Paths.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if s.Task != "my task" {
-		t.Errorf("expected task='my task', got %q", s.Task)
+	var timer Timer
+	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Fatal("expected current timer")
 	}
-	if s.StartedEpoch != 1700000000 {
-		t.Errorf("expected started_epoch=1700000000, got %d", s.StartedEpoch)
+	if timer.Task != "my task" {
+		t.Errorf("expected task='my task', got %q", timer.Task)
 	}
-	if s.Duration != 1500 {
-		t.Errorf("expected duration=1500, got %d", s.Duration)
+	if timer.StartedEpoch != 1700000000 {
+		t.Errorf("expected started_epoch=1700000000, got %d", timer.StartedEpoch)
+	}
+	if timer.Duration != 1500 {
+		t.Errorf("expected duration=1500, got %d", timer.Duration)
 	}
 }
 
-func TestCmdStart_SavesLastFile(t *testing.T) {
+func TestCmdStart_SavesLastTimer(t *testing.T) {
 	app, _, _, _ := testApp(t)
 	app.CmdStart([]string{"10", "quick"})
 
-	data, _ := os.ReadFile(app.Paths.LastFile)
 	var lt LastTimer
-	json.Unmarshal(data, &lt)
+	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+		t.Fatal("expected last timer")
+	}
 	if lt.Duration != 10 {
 		t.Errorf("expected duration=10, got %d", lt.Duration)
 	}
@@ -101,14 +101,15 @@ func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000060, 0) }
 	app.CmdStart([]string{"10", "second"})
 
-	data, _ := os.ReadFile(app.Paths.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if s.Task != "second" {
-		t.Errorf("expected task='second', got %q", s.Task)
+	var timer Timer
+	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Fatal("expected current timer")
 	}
-	if s.Duration != 600 {
-		t.Errorf("expected duration=600, got %d", s.Duration)
+	if timer.Task != "second" {
+		t.Errorf("expected task='second', got %q", timer.Task)
+	}
+	if timer.Duration != 600 {
+		t.Errorf("expected duration=600, got %d", timer.Duration)
 	}
 }
 
@@ -120,11 +121,12 @@ func TestCmdStart_ReplacesExpiredTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStart([]string{"10", "next"})
 
-	data, _ := os.ReadFile(app.Paths.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if s.Task != "next" {
-		t.Errorf("expected task='next', got %q", s.Task)
+	var timer Timer
+	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Fatal("expected current timer")
+	}
+	if timer.Task != "next" {
+		t.Errorf("expected task='next', got %q", timer.Task)
 	}
 }
 
@@ -202,8 +204,13 @@ func TestCmdStop_RunningTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
-	if _, err := os.Stat(app.Paths.StateFile); !os.IsNotExist(err) {
-		t.Error("state file should be removed")
+	var timer Timer
+	if ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Error("expected current to be cleared")
+	}
+	var lt LastTimer
+	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+		t.Error("expected last to be preserved")
 	}
 	if !strings.Contains(stdout.String(), "stopped") {
 		t.Error("expected 'stopped' in output")
@@ -240,8 +247,13 @@ func TestCmdStop_ExpiredTimerClearsState(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStop([]string{})
 
-	if _, err := os.Stat(app.Paths.StateFile); !os.IsNotExist(err) {
-		t.Error("state file should be removed")
+	var timer Timer
+	if ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Error("expected current to be cleared")
+	}
+	var lt LastTimer
+	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+		t.Error("expected last to be preserved")
 	}
 	if !strings.Contains(stdout.String(), "Cleared") {
 		t.Error("expected 'Cleared' in output")
@@ -310,10 +322,11 @@ func TestCmdComplete_MarksNotified(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 
-	data, _ := os.ReadFile(app.Paths.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if !s.Notified {
+	var timer Timer
+	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Fatal("expected current timer")
+	}
+	if !timer.Notified {
 		t.Error("expected notified=true")
 	}
 }
@@ -406,14 +419,15 @@ func TestCmdAgain_RepeatsLast(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700002000, 0) }
 	app.CmdAgain([]string{})
 
-	data, _ := os.ReadFile(app.Paths.StateFile)
-	var s State
-	json.Unmarshal(data, &s)
-	if s.Task != "repeated" {
-		t.Errorf("expected task='repeated', got %q", s.Task)
+	var timer Timer
+	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+		t.Fatal("expected current timer")
 	}
-	if s.Duration != 1500 {
-		t.Errorf("expected duration=1500, got %d", s.Duration)
+	if timer.Task != "repeated" {
+		t.Errorf("expected task='repeated', got %q", timer.Task)
+	}
+	if timer.Duration != 1500 {
+		t.Errorf("expected duration=1500, got %d", timer.Duration)
 	}
 }
 
@@ -422,14 +436,5 @@ func TestCmdAgain_NoPrevious(t *testing.T) {
 	err := app.CmdAgain([]string{})
 	if err == nil {
 		t.Error("expected error for no previous timer")
-	}
-}
-
-func TestCmdAgain_CorruptLastFile(t *testing.T) {
-	app, _, _, _ := testApp(t)
-	os.WriteFile(filepath.Join(app.Paths.ConfigDir, "last.json"), []byte("{bad json"), 0o644)
-	err := app.CmdAgain([]string{})
-	if err == nil {
-		t.Error("expected error for corrupt last file")
 	}
 }

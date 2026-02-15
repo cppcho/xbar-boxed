@@ -34,15 +34,15 @@ func (a *App) CmdStart(args []string) error {
 	task := strings.Join(args[1:], " ")
 
 	// If timer already running, stop it first
-	state := ReadState(a.Paths.StateFile)
+	var old Timer
 	now := a.NowFunc()
-	if state != nil {
-		oldTask := state.Task
+	if ReadStateKey(a.Paths.StateFile, "current", &old) {
+		oldTask := old.Task
 		if oldTask == "" {
 			oldTask = "Untitled"
 		}
-		oldStarted := time.Unix(state.StartedEpoch, 0)
-		oldDuration := time.Duration(state.Duration) * time.Second
+		oldStarted := time.Unix(old.StartedEpoch, 0)
+		oldDuration := time.Duration(old.Duration) * time.Second
 		oldElapsed := now.Sub(oldStarted)
 		if oldElapsed < oldDuration {
 			LogEnd(a.Paths, oldStarted, oldDuration, oldTask, false, a.NowFunc)
@@ -51,11 +51,17 @@ func (a *App) CmdStart(args []string) error {
 		}
 	}
 
-	WriteLastTimer(a.Paths, durationMins, task)
-
 	durationSecs := durationMins * 60
 	duration := time.Duration(durationSecs) * time.Second
-	WriteState(a.Paths, task, now.Unix(), durationSecs)
+	WriteStateKey(a.Paths, "current", &Timer{
+		Task:         task,
+		StartedEpoch: now.Unix(),
+		Duration:     durationSecs,
+	})
+	WriteStateKey(a.Paths, "last", &LastTimer{
+		Duration: durationMins,
+		Task:     task,
+	})
 
 	config := ReadConfig(a.Paths.ConfigFile)
 	LogStart(a.Paths, now, duration, task)
@@ -69,23 +75,23 @@ func (a *App) CmdStart(args []string) error {
 
 // CmdComplete is called by the xbar plugin when a timer expires.
 func (a *App) CmdComplete(args []string) error {
-	state := ReadState(a.Paths.StateFile)
-	if state == nil {
+	var timer Timer
+	if !ReadStateKey(a.Paths.StateFile, "current", &timer) {
 		return nil
 	}
-	if state.Notified {
+	if timer.Notified {
 		return nil
 	}
 
 	now := a.NowFunc()
-	started := time.Unix(state.StartedEpoch, 0)
-	duration := time.Duration(state.Duration) * time.Second
+	started := time.Unix(timer.StartedEpoch, 0)
+	duration := time.Duration(timer.Duration) * time.Second
 	elapsed := now.Sub(started)
 	if elapsed < duration {
 		return nil
 	}
 
-	task := state.Task
+	task := timer.Task
 	if task == "" {
 		task = "Untitled"
 	}
@@ -97,15 +103,15 @@ func (a *App) CmdComplete(args []string) error {
 		PlaySoundByName(a.Runner, "Glass")
 	}
 
-	state.Notified = true
-	WriteStateFull(a.Paths, state)
+	timer.Notified = true
+	WriteStateKey(a.Paths, "current", &timer)
 	return nil
 }
 
 // CmdAgain repeats the last started timer.
 func (a *App) CmdAgain(args []string) error {
-	lt, err := ReadLastTimer(a.Paths.LastFile)
-	if err != nil {
+	var lt LastTimer
+	if !ReadStateKey(a.Paths.StateFile, "last", &lt) {
 		fmt.Fprintln(a.Stderr, "No previous timer to repeat.")
 		return fmt.Errorf("exit 1")
 	}
@@ -114,31 +120,31 @@ func (a *App) CmdAgain(args []string) error {
 
 // CmdStop stops the current timer.
 func (a *App) CmdStop(args []string) error {
-	state := ReadState(a.Paths.StateFile)
-	if state == nil {
+	var timer Timer
+	if !ReadStateKey(a.Paths.StateFile, "current", &timer) {
 		fmt.Fprintln(a.Stderr, "No timer running.")
 		return fmt.Errorf("exit 1")
 	}
 
 	now := a.NowFunc()
-	task := state.Task
+	task := timer.Task
 	if task == "" {
 		task = "Untitled"
 	}
-	started := time.Unix(state.StartedEpoch, 0)
-	duration := time.Duration(state.Duration) * time.Second
+	started := time.Unix(timer.StartedEpoch, 0)
+	duration := time.Duration(timer.Duration) * time.Second
 	elapsed := now.Sub(started)
 
 	// Timer already expired — finalize and clean up
 	if elapsed >= duration {
 		LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
-		ClearState(a.Paths)
+		ClearStateKey(a.Paths, "current")
 		fmt.Fprintf(a.Stdout, "Cleared ended timer: %s\n", task)
 		return nil
 	}
 
 	config := ReadConfig(a.Paths.ConfigFile)
-	ClearState(a.Paths)
+	ClearStateKey(a.Paths, "current")
 	LogEnd(a.Paths, started, duration, task, false, a.NowFunc)
 	elapsedStr := FormatDuration(elapsed)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))

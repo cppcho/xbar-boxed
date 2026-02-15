@@ -22,8 +22,9 @@ func testXbarApp(t *testing.T) (*XbarApp, *RecordingRunner, *bytes.Buffer) {
 	}, runner, stdout
 }
 
-func writeStateJSON(t *testing.T, path string, s map[string]any) {
-	data, _ := json.Marshal(s)
+func writeStateJSON(t *testing.T, path string, timer map[string]any) {
+	wrapper := map[string]any{"current": timer}
+	data, _ := json.Marshal(wrapper)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}

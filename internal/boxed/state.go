@@ -6,9 +6,8 @@ import (
 	"path/filepath"
 )
 
-// State represents the current timer state persisted in state.json.
-// JSON field names match the Python version for compatibility.
-type State struct {
+// Timer represents an active timer's fields.
+type Timer struct {
 	Task          string `json:"task"`
 	StartedEpoch  int64  `json:"started_epoch"`
 	Duration      int    `json:"duration"`
@@ -51,70 +50,66 @@ func AtomicWriteJSON(filepath_ string, data any) error {
 	return os.Rename(tmpName, filepath_)
 }
 
-// ReadState reads the timer state from disk. Returns nil if missing or corrupt.
-func ReadState(stateFile string) *State {
+// readStateMap reads the state file as a raw key-value map.
+func readStateMap(stateFile string) map[string]json.RawMessage {
 	data, err := os.ReadFile(stateFile)
 	if err != nil {
 		return nil
 	}
-	var s State
-	if err := json.Unmarshal(data, &s); err != nil {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
 		return nil
 	}
-	return &s
+	return m
 }
 
-// WriteState writes timer state atomically.
-func WriteState(p Paths, task string, startedEpoch int64, duration int) error {
+// ReadStateKey reads a specific key from state.json and unmarshals into dest.
+// Returns false if the file is missing, corrupt, or the key doesn't exist.
+func ReadStateKey(stateFile string, key string, dest any) bool {
+	m := readStateMap(stateFile)
+	if m == nil {
+		return false
+	}
+	raw, ok := m[key]
+	if !ok {
+		return false
+	}
+	return json.Unmarshal(raw, dest) == nil
+}
+
+// WriteStateKey writes a value under the given key in state.json (read-modify-write).
+func WriteStateKey(p Paths, key string, value any) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
-	s := State{
-		Task:         task,
-		StartedEpoch: startedEpoch,
-		Duration:     duration,
+	m := readStateMap(p.StateFile)
+	if m == nil {
+		m = make(map[string]json.RawMessage)
 	}
-	return AtomicWriteJSON(p.StateFile, s)
-}
-
-// WriteStateFull writes a complete State struct atomically.
-func WriteStateFull(p Paths, s *State) error {
-	if err := p.EnsureDirs(); err != nil {
-		return err
-	}
-	return AtomicWriteJSON(p.StateFile, s)
-}
-
-// ClearState removes the state file.
-func ClearState(p Paths) error {
-	if err := p.EnsureDirs(); err != nil {
-		return err
-	}
-	err := os.Remove(p.StateFile)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return err
-}
-
-// ReadLastTimer reads the last timer params from disk.
-func ReadLastTimer(lastFile string) (*LastTimer, error) {
-	data, err := os.ReadFile(lastFile)
+	raw, err := json.Marshal(value)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var lt LastTimer
-	if err := json.Unmarshal(data, &lt); err != nil {
-		return nil, err
-	}
-	return &lt, nil
+	m[key] = raw
+	return AtomicWriteJSON(p.StateFile, m)
 }
 
-// WriteLastTimer writes last timer params atomically.
-func WriteLastTimer(p Paths, duration int, task string) error {
+// ClearStateKey removes a key from state.json. Removes the file if no keys remain.
+func ClearStateKey(p Paths, key string) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
-	lt := LastTimer{Duration: duration, Task: task}
-	return AtomicWriteJSON(p.LastFile, lt)
+	m := readStateMap(p.StateFile)
+	if m == nil {
+		return nil
+	}
+	delete(m, key)
+	if len(m) == 0 {
+		err := os.Remove(p.StateFile)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return AtomicWriteJSON(p.StateFile, m)
 }
