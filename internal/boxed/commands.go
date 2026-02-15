@@ -3,7 +3,6 @@ package boxed
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -64,7 +63,7 @@ func (a *App) CmdStart(args []string) error {
 	LogStart(a.Paths, now, duration, task)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer started: %dm — %s", durationMins, task))
 	if config.NotifySound {
-		PlaySoundFile(a.Runner, filepath.Join(a.Paths.SoundsDir, "PeonReady1.ogg"))
+		PlaySoundByName(a.Runner, SoundNameStart)
 	}
 	fmt.Fprintf(a.Stdout, "Timer started: %dm — %s\n", durationMins, task)
 	return nil
@@ -100,7 +99,7 @@ func CompleteTimer(paths Paths, runner CommandRunner, nowFunc func() time.Time) 
 	LogEnd(paths, timer.StartedAt, timer.Duration, task, true, nowFunc)
 	Notify(runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
 	if config.NotifySound {
-		PlaySoundByName(runner, "Glass")
+		PlaySoundByName(runner, SoundNameComplete)
 	}
 
 	timer.Notified = true
@@ -147,7 +146,7 @@ func (a *App) CmdStop(args []string) error {
 	elapsedStr := FormatDuration(elapsed)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))
 	if config.NotifySound {
-		PlaySoundByName(a.Runner, "Sosumi")
+		PlaySoundByName(a.Runner, SoundNameStop)
 	}
 	fmt.Fprintf(a.Stdout, "Timer stopped: %s (%s elapsed)\n", task, elapsedStr)
 	return nil

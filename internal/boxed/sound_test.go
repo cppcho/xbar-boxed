@@ -9,17 +9,17 @@ import (
 func TestPlaySoundByName(t *testing.T) {
 	tests := []struct {
 		name    string
-		sound   string
+		sound   boxed.SoundName
 		wantCmd string
 	}{
 		{
 			name:    "Glass sound",
-			sound:   "Glass",
+			sound:   boxed.SoundNameComplete,
 			wantCmd: "afplay /System/Library/Sounds/Glass.aiff",
 		},
 		{
 			name:    "Sosumi sound",
-			sound:   "Sosumi",
+			sound:   boxed.SoundNameStop,
 			wantCmd: "afplay /System/Library/Sounds/Sosumi.aiff",
 		},
 	}

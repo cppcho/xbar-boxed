@@ -3,7 +3,6 @@ package boxed
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"time"
 )
 
@@ -41,8 +40,7 @@ func (x *XbarApp) Run() {
 					lastTick = timer.StartedAt
 				}
 				if now.Sub(lastTick) >= config.TickInterval {
-					// TODO: should i change sound?
-					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
+					PlaySoundByName(x.Runner, SoundNameTick)
 					timer.LastTickAt = now
 					WriteStateKey(x.Paths, StateKeyCurrent, &timer)
 				}
