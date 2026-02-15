@@ -41,25 +41,22 @@ func (a *App) CmdStart(args []string) error {
 		if oldTask == "" {
 			oldTask = "Untitled"
 		}
-		oldStarted := time.Unix(old.StartedEpoch, 0)
-		oldDuration := time.Duration(old.Duration) * time.Second
-		oldElapsed := now.Sub(oldStarted)
-		if oldElapsed < oldDuration {
-			LogEnd(a.Paths, oldStarted, oldDuration, oldTask, false, a.NowFunc)
+		oldElapsed := now.Sub(old.StartedAt)
+		if oldElapsed < old.Duration {
+			LogEnd(a.Paths, old.StartedAt, old.Duration, oldTask, false, a.NowFunc)
 		} else {
-			LogEnd(a.Paths, oldStarted, oldDuration, oldTask, true, a.NowFunc)
+			LogEnd(a.Paths, old.StartedAt, old.Duration, oldTask, true, a.NowFunc)
 		}
 	}
 
-	durationSecs := durationMins * 60
-	duration := time.Duration(durationSecs) * time.Second
+	duration := time.Duration(durationMins) * time.Minute
 	WriteStateKey(a.Paths, StateKeyCurrent, &CurrentTimer{
-		Task:         task,
-		StartedEpoch: now.Unix(),
-		Duration:     durationSecs,
+		Task:      task,
+		StartedAt: now,
+		Duration:  duration,
 	})
 	WriteStateKey(a.Paths, StateKeyLast, &LastTimer{
-		Duration: durationMins,
+		Duration: duration,
 		Task:     task,
 	})
 
@@ -84,10 +81,8 @@ func (a *App) CmdComplete(args []string) error {
 	}
 
 	now := a.NowFunc()
-	started := time.Unix(timer.StartedEpoch, 0)
-	duration := time.Duration(timer.Duration) * time.Second
-	elapsed := now.Sub(started)
-	if elapsed < duration {
+	elapsed := now.Sub(timer.StartedAt)
+	if elapsed < timer.Duration {
 		return nil
 	}
 
@@ -97,7 +92,7 @@ func (a *App) CmdComplete(args []string) error {
 	}
 	config := ReadConfig(a.Paths.ConfigFile)
 
-	LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
+	LogEnd(a.Paths, timer.StartedAt, timer.Duration, task, true, a.NowFunc)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
 	if config.NotifySound {
 		PlaySoundByName(a.Runner, "Glass")
@@ -115,7 +110,7 @@ func (a *App) CmdAgain(args []string) error {
 		fmt.Fprintln(a.Stderr, "No previous timer to repeat.")
 		return fmt.Errorf("exit 1")
 	}
-	return a.CmdStart([]string{strconv.Itoa(lt.Duration), lt.Task})
+	return a.CmdStart([]string{strconv.Itoa(int(lt.Duration.Minutes())), lt.Task})
 }
 
 // CmdStop stops the current timer.
@@ -131,13 +126,11 @@ func (a *App) CmdStop(args []string) error {
 	if task == "" {
 		task = "Untitled"
 	}
-	started := time.Unix(timer.StartedEpoch, 0)
-	duration := time.Duration(timer.Duration) * time.Second
-	elapsed := now.Sub(started)
+	elapsed := now.Sub(timer.StartedAt)
 
 	// Timer already expired — finalize and clean up
-	if elapsed >= duration {
-		LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
+	if elapsed >= timer.Duration {
+		LogEnd(a.Paths, timer.StartedAt, timer.Duration, task, true, a.NowFunc)
 		ClearStateKey(a.Paths, StateKeyCurrent)
 		fmt.Fprintf(a.Stdout, "Cleared ended timer: %s\n", task)
 		return nil
@@ -145,7 +138,7 @@ func (a *App) CmdStop(args []string) error {
 
 	config := ReadConfig(a.Paths.ConfigFile)
 	ClearStateKey(a.Paths, StateKeyCurrent)
-	LogEnd(a.Paths, started, duration, task, false, a.NowFunc)
+	LogEnd(a.Paths, timer.StartedAt, timer.Duration, task, false, a.NowFunc)
 	elapsedStr := FormatDuration(elapsed)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))
 	if config.NotifySound {

@@ -2,7 +2,6 @@ package boxed
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -22,10 +21,9 @@ func testXbarApp(t *testing.T) (*XbarApp, *RecordingRunner, *bytes.Buffer) {
 	}, runner, stdout
 }
 
-func writeStateJSON(t *testing.T, path string, timer map[string]any) {
-	wrapper := map[string]any{string(StateKeyCurrent): timer}
-	data, _ := json.Marshal(wrapper)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+func writeCurrentTimer(t *testing.T, p Paths, timer *CurrentTimer) {
+	t.Helper()
+	if err := WriteStateKey(p, StateKeyCurrent, timer); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -61,10 +59,10 @@ func TestXbar_NoTimer_ShowsMenuItems(t *testing.T) {
 func TestXbar_RunningTimer_ShowsTaskAndRemaining(t *testing.T) {
 	x, _, stdout := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "focus work",
-		"started_epoch": now.Unix(),
-		"duration":      1500,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "focus work",
+		StartedAt: now,
+		Duration:  25 * time.Minute,
 	})
 	x.NowFunc = func() time.Time { return now.Add(300 * time.Second) }
 	x.Run()
@@ -81,10 +79,10 @@ func TestXbar_RunningTimer_ShowsTaskAndRemaining(t *testing.T) {
 func TestXbar_RunningTimer_SeparatorPresent(t *testing.T) {
 	x, _, stdout := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "t",
-		"started_epoch": now.Unix(),
-		"duration":      1500,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "t",
+		StartedAt: now,
+		Duration:  25 * time.Minute,
 	})
 	x.NowFunc = func() time.Time { return now.Add(60 * time.Second) }
 	x.Run()
@@ -99,11 +97,11 @@ func TestXbar_RunningTimer_SeparatorPresent(t *testing.T) {
 func TestXbar_ExpiredTimer_ShowsBoxEmoji(t *testing.T) {
 	x, _, stdout := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "done",
-		"started_epoch": now.Unix(),
-		"duration":      60,
-		"notified":      true,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "done",
+		StartedAt: now,
+		Duration:  1 * time.Minute,
+		Notified:  true,
 	})
 	x.NowFunc = func() time.Time { return now.Add(120 * time.Second) }
 	x.Run()
@@ -117,10 +115,10 @@ func TestXbar_ExpiredTimer_ShowsBoxEmoji(t *testing.T) {
 func TestXbar_ExpiredNotNotified_CallsComplete(t *testing.T) {
 	x, runner, _ := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "expired",
-		"started_epoch": now.Unix(),
-		"duration":      60,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "expired",
+		StartedAt: now,
+		Duration:  1 * time.Minute,
 	})
 	x.NowFunc = func() time.Time { return now.Add(120 * time.Second) }
 	x.Run()
@@ -145,10 +143,10 @@ func TestXbar_ExpiredNotNotified_CallsComplete(t *testing.T) {
 func TestXbar_TickPlaysWhenIntervalReached(t *testing.T) {
 	x, runner, _ := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "tick test",
-		"started_epoch": now.Unix(),
-		"duration":      1500,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "tick test",
+		StartedAt: now,
+		Duration:  25 * time.Minute,
 	})
 	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5\n"), 0o644)
 	x.NowFunc = func() time.Time { return now.Add(300 * time.Second) }
@@ -162,10 +160,10 @@ func TestXbar_TickPlaysWhenIntervalReached(t *testing.T) {
 func TestXbar_NoTickBeforeInterval(t *testing.T) {
 	x, runner, _ := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
-	writeStateJSON(t, x.Paths.StateFile, map[string]any{
-		"task":          "tick test",
-		"started_epoch": now.Unix(),
-		"duration":      1500,
+	writeCurrentTimer(t, x.Paths, &CurrentTimer{
+		Task:      "tick test",
+		StartedAt: now,
+		Duration:  25 * time.Minute,
 	})
 	os.WriteFile(x.Paths.ConfigFile, []byte("tick_interval = 5\n"), 0o644)
 	x.NowFunc = func() time.Time { return now.Add(60 * time.Second) }

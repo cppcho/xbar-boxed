@@ -27,9 +27,7 @@ func (x *XbarApp) Run() {
 			task = "Untitled"
 		}
 		now := x.NowFunc()
-		started := time.Unix(timer.StartedEpoch, 0)
-		duration := time.Duration(timer.Duration) * time.Second
-		remaining := duration - now.Sub(started)
+		remaining := timer.Duration - now.Sub(timer.StartedAt)
 
 		if remaining <= 0 {
 			if !timer.Notified {
@@ -41,14 +39,14 @@ func (x *XbarApp) Run() {
 			config := ReadConfig(x.Paths.ConfigFile)
 			if config.TickInterval > 0 {
 				intervalDur := time.Duration(config.TickInterval) * time.Minute
-				lastTick := time.Unix(timer.LastTickEpoch, 0)
-				if timer.LastTickEpoch == 0 {
-					lastTick = started
+				lastTick := timer.LastTickAt
+				if timer.LastTickAt.IsZero() {
+					lastTick = timer.StartedAt
 				}
 				if now.Sub(lastTick) >= intervalDur {
 					// TODO: should i change sound?
 					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
-					timer.LastTickEpoch = now.Unix()
+					timer.LastTickAt = now
 					WriteStateKey(x.Paths, StateKeyCurrent, &timer)
 				}
 			}

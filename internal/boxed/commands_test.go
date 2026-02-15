@@ -37,11 +37,11 @@ func TestCmdStart_Basic(t *testing.T) {
 	if timer.Task != "my task" {
 		t.Errorf("expected task='my task', got %q", timer.Task)
 	}
-	if timer.StartedEpoch != 1700000000 {
-		t.Errorf("expected started_epoch=1700000000, got %d", timer.StartedEpoch)
+	if !timer.StartedAt.Equal(time.Unix(1700000000, 0)) {
+		t.Errorf("expected started_at=1700000000, got %v", timer.StartedAt)
 	}
-	if timer.Duration != 1500 {
-		t.Errorf("expected duration=1500, got %d", timer.Duration)
+	if timer.Duration != 25*time.Minute {
+		t.Errorf("expected duration=25m, got %v", timer.Duration)
 	}
 }
 
@@ -53,8 +53,8 @@ func TestCmdStart_SavesLastTimer(t *testing.T) {
 	if !ReadStateKey(app.Paths.StateFile, StateKeyLast, &lt) {
 		t.Fatal("expected last timer")
 	}
-	if lt.Duration != 10 {
-		t.Errorf("expected duration=10, got %d", lt.Duration)
+	if lt.Duration != 10*time.Minute {
+		t.Errorf("expected duration=10m, got %v", lt.Duration)
 	}
 	if lt.Task != "quick" {
 		t.Errorf("expected task='quick', got %q", lt.Task)
@@ -108,8 +108,8 @@ func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 	if timer.Task != "second" {
 		t.Errorf("expected task='second', got %q", timer.Task)
 	}
-	if timer.Duration != 600 {
-		t.Errorf("expected duration=600, got %d", timer.Duration)
+	if timer.Duration != 10*time.Minute {
+		t.Errorf("expected duration=10m, got %v", timer.Duration)
 	}
 }
 
@@ -426,8 +426,8 @@ func TestCmdAgain_RepeatsLast(t *testing.T) {
 	if timer.Task != "repeated" {
 		t.Errorf("expected task='repeated', got %q", timer.Task)
 	}
-	if timer.Duration != 1500 {
-		t.Errorf("expected duration=1500, got %d", timer.Duration)
+	if timer.Duration != 25*time.Minute {
+		t.Errorf("expected duration=25m, got %v", timer.Duration)
 	}
 }
 

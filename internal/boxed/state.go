@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // StateKey is a typed key for state.json entries.
@@ -17,17 +18,17 @@ const (
 
 // CurrentTimer represents an active timer's fields.
 type CurrentTimer struct {
-	Task          string `json:"task"`
-	StartedEpoch  int64  `json:"started_epoch"`
-	Duration      int    `json:"duration"`
-	Notified      bool   `json:"notified,omitempty"`
-	LastTickEpoch int64  `json:"last_tick_epoch,omitempty"`
+	Task       string        `json:"task"`
+	StartedAt  time.Time     `json:"started_at"`
+	Duration   time.Duration `json:"duration"`
+	Notified   bool          `json:"notified,omitempty"`
+	LastTickAt time.Time     `json:"last_tick_at,omitempty"`
 }
 
 // LastTimer stores the most recent timer params for "again" command.
 type LastTimer struct {
-	Duration int    `json:"duration"`
-	Task     string `json:"task"`
+	Duration time.Duration `json:"duration"`
+	Task     string        `json:"task"`
 }
 
 // AtomicWriteJSON writes data as JSON atomically via temp file + fsync + rename.
