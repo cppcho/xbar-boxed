@@ -31,14 +31,14 @@ func ReadConfig(configFile string) Config {
 		return config
 	}
 
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if idx := strings.Index(line, "="); idx >= 0 {
-			key := strings.TrimSpace(line[:idx])
-			value := strings.TrimSpace(line[idx+1:])
+		if key, value, found := strings.Cut(line, "="); found {
+			key := strings.TrimSpace(key)
+			value := strings.TrimSpace(value)
 			switch key {
 			case "notify_sound":
 				switch value {
