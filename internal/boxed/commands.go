@@ -55,10 +55,10 @@ func (a *App) CmdStart(args []string) error {
 	durationSecs := durationMins * 60
 	WriteState(a.Paths, task, now, durationSecs)
 
-	config := ReadConfig(a.Paths.ConfigFile, map[string]string{"notify_sound": "true"})
+	config := ReadConfig(a.Paths.ConfigFile)
 	LogStart(a.Paths, now, durationSecs, task)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer started: %dm — %s", durationMins, task))
-	if config["notify_sound"] == "true" {
+	if config.NotifySound {
 		PlaySoundFile(a.Runner, filepath.Join(a.Paths.SoundsDir, "PeonReady1.ogg"))
 	}
 	fmt.Fprintf(a.Stdout, "Timer started: %dm — %s\n", durationMins, task)
@@ -85,11 +85,11 @@ func (a *App) CmdComplete(args []string) error {
 	if task == "" {
 		task = "Untitled"
 	}
-	config := ReadConfig(a.Paths.ConfigFile, map[string]string{"notify_sound": "true"})
+	config := ReadConfig(a.Paths.ConfigFile)
 
 	LogEnd(a.Paths, state.StartedEpoch, state.Duration, task, true, a.NowFunc)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
-	if config["notify_sound"] == "true" {
+	if config.NotifySound {
 		PlaySoundByName(a.Runner, "Glass")
 	}
 
@@ -131,12 +131,12 @@ func (a *App) CmdStop(args []string) error {
 		return nil
 	}
 
-	config := ReadConfig(a.Paths.ConfigFile, map[string]string{"notify_sound": "true"})
+	config := ReadConfig(a.Paths.ConfigFile)
 	ClearState(a.Paths)
 	LogEnd(a.Paths, state.StartedEpoch, state.Duration, task, false, a.NowFunc)
 	elapsedStr := FormatDuration(int(elapsed))
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))
-	if config["notify_sound"] == "true" {
+	if config.NotifySound {
 		PlaySoundByName(a.Runner, "Sosumi")
 	}
 	fmt.Fprintf(a.Stdout, "Timer stopped: %s (%s elapsed)\n", task, elapsedStr)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 )
 
 // XbarApp holds dependencies for the xbar plugin.
@@ -38,21 +37,17 @@ func (x *XbarApp) Run() {
 			}
 			x.out("📦")
 		} else {
-			config := ReadConfig(x.Paths.ConfigFile, nil)
-			tickIntervalStr := config["tick_interval"]
-			if tickIntervalStr != "" {
-				tickInterval, _ := strconv.Atoi(tickIntervalStr)
-				if tickInterval > 0 {
-					intervalSecs := int64(tickInterval * 60)
-					lastTick := state.LastTickEpoch
-					if lastTick == 0 {
-						lastTick = started
-					}
-					if now-lastTick >= intervalSecs {
-						PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
-						state.LastTickEpoch = now
-						WriteStateFull(x.Paths, state)
-					}
+			config := ReadConfig(x.Paths.ConfigFile)
+			if config.TickInterval > 0 {
+				intervalSecs := int64(config.TickInterval * 60)
+				lastTick := state.LastTickEpoch
+				if lastTick == 0 {
+					lastTick = started
+				}
+				if now-lastTick >= intervalSecs {
+					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
+					state.LastTickEpoch = now
+					WriteStateFull(x.Paths, state)
 				}
 			}
 			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(int(remaining))))

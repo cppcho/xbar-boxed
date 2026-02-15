@@ -2,20 +2,29 @@ package boxed
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
+
+// Config holds typed configuration values.
+type Config struct {
+	NotifySound  bool // default: true
+	TickInterval int  // minutes, default: 0 (disabled)
+}
+
+// DefaultConfig returns the default configuration.
+func DefaultConfig() Config {
+	return Config{NotifySound: true, TickInterval: 0}
+}
 
 const defaultConfigContent = `# Boxed configuration
 # notify_sound = true
 # tick_interval = 5
 `
 
-// ReadConfig reads a key=value config file, merged over defaults.
-func ReadConfig(configFile string, defaults map[string]string) map[string]string {
-	config := make(map[string]string)
-	for k, v := range defaults {
-		config[k] = v
-	}
+// ReadConfig reads a key=value config file into a typed Config struct.
+func ReadConfig(configFile string) Config {
+	config := DefaultConfig()
 
 	data, err := os.ReadFile(configFile)
 	if err != nil {
@@ -30,7 +39,20 @@ func ReadConfig(configFile string, defaults map[string]string) map[string]string
 		if idx := strings.Index(line, "="); idx >= 0 {
 			key := strings.TrimSpace(line[:idx])
 			value := strings.TrimSpace(line[idx+1:])
-			config[key] = value
+			switch key {
+			case "notify_sound":
+				switch value {
+				case "true":
+					config.NotifySound = true
+				case "false":
+					config.NotifySound = false
+				}
+			case "tick_interval":
+				num, err := strconv.Atoi(value)
+				if err == nil {
+					config.TickInterval = num
+				}
+			}
 		}
 	}
 	return config
