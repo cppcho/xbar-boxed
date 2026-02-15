@@ -4,25 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Boxed is a macOS menu bar timeboxing timer built as an [xbar](https://xbarapp.com/) plugin. It consists of two Python scripts with no external dependencies.
+Boxed is a macOS menu bar timeboxing timer built as an [xbar](https://xbarapp.com/) plugin. It consists of two Go binaries with no external dependencies (stdlib only).
 
 ## Architecture
 
-- **`boxed/bin/boxed.py`** — CLI for starting/stopping timers (`boxed start <minutes> <task>`, `boxed stop`). Writes state, logs events, sends macOS notifications via osascript.
-- **`boxed/Library/Application Support/xbar/plugins/boxed.1s.py`** — xbar plugin that reads state and renders the menu bar countdown. The `1s` in the filename means xbar runs it every 1 second. Sends a "time's up" notification when a timer expires.
+- **`cmd/boxed/main.go`** — CLI entrypoint (`boxed start <minutes> <task>`, `boxed stop`, `boxed again`, `boxed complete`). Dispatches to `App` struct in `internal/boxed/commands.go`.
+- **`cmd/boxed-xbar/main.go`** — xbar plugin entrypoint. Creates `XbarApp` and calls `Run()`. The installed binary is named `boxed.1s` so xbar runs it every 1 second.
+- **`internal/boxed/`** — All shared logic: paths, config, state, logging, notifications, sound, commands, and xbar rendering.
 
-Both scripts share the same config directory (`~/.config/boxed/`) with:
+Both binaries share the same config directory (`~/.config/boxed/`) with:
 - `state.json` — current timer state (task, started_epoch, duration, notified)
 - `config` — simple `key = value` config file (e.g., `notify_sound = true`)
 - `log` — human-readable event log, grouped by date with time ranges and outcome symbols (✓ completed, ✕ stopped)
 
-State writes use atomic file operations (temp file + fsync + os.replace) to avoid corruption.
+State writes use atomic file operations (temp file + fsync + os.Rename) to avoid corruption.
+
+Testability is achieved via dependency injection: `Paths` struct (file paths), `CommandRunner` interface (subprocess calls), and `NowFunc` (clock) are injected into `App` and `XbarApp` structs.
 
 ## Installation
 
-Uses GNU Stow to symlink the `boxed/` directory tree into `~`:
 ```
-./install.sh    # runs: stow -v -R -t ~ "boxed"
+make install    # builds binaries, copies to ~/bin/ and xbar plugins dir
 ```
 
 ## Testing
@@ -34,11 +36,5 @@ make test
 ## Linting
 
 ```
-uvx ruff check .
-```
-
-## Formatting
-
-```
-uvx ruff format .
+make lint       # runs go vet ./...
 ```
