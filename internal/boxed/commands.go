@@ -36,7 +36,7 @@ func (a *App) CmdStart(args []string) error {
 	// If timer already running, stop it first
 	var old Timer
 	now := a.NowFunc()
-	if ReadStateKey(a.Paths.StateFile, "current", &old) {
+	if ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &old) {
 		oldTask := old.Task
 		if oldTask == "" {
 			oldTask = "Untitled"
@@ -53,12 +53,12 @@ func (a *App) CmdStart(args []string) error {
 
 	durationSecs := durationMins * 60
 	duration := time.Duration(durationSecs) * time.Second
-	WriteStateKey(a.Paths, "current", &Timer{
+	WriteStateKey(a.Paths, StateKeyCurrent, &Timer{
 		Task:         task,
 		StartedEpoch: now.Unix(),
 		Duration:     durationSecs,
 	})
-	WriteStateKey(a.Paths, "last", &LastTimer{
+	WriteStateKey(a.Paths, StateKeyLast, &LastTimer{
 		Duration: durationMins,
 		Task:     task,
 	})
@@ -76,7 +76,7 @@ func (a *App) CmdStart(args []string) error {
 // CmdComplete is called by the xbar plugin when a timer expires.
 func (a *App) CmdComplete(args []string) error {
 	var timer Timer
-	if !ReadStateKey(a.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &timer) {
 		return nil
 	}
 	if timer.Notified {
@@ -104,14 +104,14 @@ func (a *App) CmdComplete(args []string) error {
 	}
 
 	timer.Notified = true
-	WriteStateKey(a.Paths, "current", &timer)
+	WriteStateKey(a.Paths, StateKeyCurrent, &timer)
 	return nil
 }
 
 // CmdAgain repeats the last started timer.
 func (a *App) CmdAgain(args []string) error {
 	var lt LastTimer
-	if !ReadStateKey(a.Paths.StateFile, "last", &lt) {
+	if !ReadStateKey(a.Paths.StateFile, StateKeyLast, &lt) {
 		fmt.Fprintln(a.Stderr, "No previous timer to repeat.")
 		return fmt.Errorf("exit 1")
 	}
@@ -121,7 +121,7 @@ func (a *App) CmdAgain(args []string) error {
 // CmdStop stops the current timer.
 func (a *App) CmdStop(args []string) error {
 	var timer Timer
-	if !ReadStateKey(a.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &timer) {
 		fmt.Fprintln(a.Stderr, "No timer running.")
 		return fmt.Errorf("exit 1")
 	}
@@ -138,13 +138,13 @@ func (a *App) CmdStop(args []string) error {
 	// Timer already expired — finalize and clean up
 	if elapsed >= duration {
 		LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
-		ClearStateKey(a.Paths, "current")
+		ClearStateKey(a.Paths, StateKeyCurrent)
 		fmt.Fprintf(a.Stdout, "Cleared ended timer: %s\n", task)
 		return nil
 	}
 
 	config := ReadConfig(a.Paths.ConfigFile)
-	ClearStateKey(a.Paths, "current")
+	ClearStateKey(a.Paths, StateKeyCurrent)
 	LogEnd(a.Paths, started, duration, task, false, a.NowFunc)
 	elapsedStr := FormatDuration(elapsed)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))

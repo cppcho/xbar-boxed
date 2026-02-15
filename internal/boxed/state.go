@@ -6,6 +6,15 @@ import (
 	"path/filepath"
 )
 
+// StateKey is a typed key for state.json entries.
+type StateKey string
+
+// Valid state keys.
+const (
+	StateKeyCurrent StateKey = "current"
+	StateKeyLast    StateKey = "last"
+)
+
 // Timer represents an active timer's fields.
 type Timer struct {
 	Task          string `json:"task"`
@@ -65,12 +74,12 @@ func readStateMap(stateFile string) map[string]json.RawMessage {
 
 // ReadStateKey reads a specific key from state.json and unmarshals into dest.
 // Returns false if the file is missing, corrupt, or the key doesn't exist.
-func ReadStateKey(stateFile string, key string, dest any) bool {
+func ReadStateKey(stateFile string, key StateKey, dest any) bool {
 	m := readStateMap(stateFile)
 	if m == nil {
 		return false
 	}
-	raw, ok := m[key]
+	raw, ok := m[string(key)]
 	if !ok {
 		return false
 	}
@@ -78,7 +87,7 @@ func ReadStateKey(stateFile string, key string, dest any) bool {
 }
 
 // WriteStateKey writes a value under the given key in state.json (read-modify-write).
-func WriteStateKey(p Paths, key string, value any) error {
+func WriteStateKey(p Paths, key StateKey, value any) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
@@ -90,12 +99,12 @@ func WriteStateKey(p Paths, key string, value any) error {
 	if err != nil {
 		return err
 	}
-	m[key] = raw
+	m[string(key)] = raw
 	return AtomicWriteJSON(p.StateFile, m)
 }
 
 // ClearStateKey removes a key from state.json. Removes the file if no keys remain.
-func ClearStateKey(p Paths, key string) error {
+func ClearStateKey(p Paths, key StateKey) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
@@ -103,7 +112,7 @@ func ClearStateKey(p Paths, key string) error {
 	if m == nil {
 		return nil
 	}
-	delete(m, key)
+	delete(m, string(key))
 	if len(m) == 0 {
 		err := os.Remove(p.StateFile)
 		if os.IsNotExist(err) {

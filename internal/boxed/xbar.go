@@ -19,7 +19,7 @@ type XbarApp struct {
 // Run renders the xbar menu bar output.
 func (x *XbarApp) Run() {
 	var timer Timer
-	hasTimer := ReadStateKey(x.Paths.StateFile, "current", &timer)
+	hasTimer := ReadStateKey(x.Paths.StateFile, StateKeyCurrent, &timer)
 
 	if hasTimer {
 		task := timer.Task
@@ -47,7 +47,7 @@ func (x *XbarApp) Run() {
 				if now.Sub(lastTick) >= intervalDur {
 					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
 					timer.LastTickEpoch = now.Unix()
-					WriteStateKey(x.Paths, "current", &timer)
+					WriteStateKey(x.Paths, StateKeyCurrent, &timer)
 				}
 			}
 			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(remaining)))

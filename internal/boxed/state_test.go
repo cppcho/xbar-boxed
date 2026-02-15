@@ -65,11 +65,11 @@ func TestAtomicWriteJSON_NoLeftoverTmpFiles(t *testing.T) {
 func TestWriteStateKey_WritesKey(t *testing.T) {
 	p := testPaths(t)
 	timer := &Timer{Task: "test", StartedEpoch: 1000, Duration: 300}
-	if err := WriteStateKey(p, "current", timer); err != nil {
+	if err := WriteStateKey(p, StateKeyCurrent, timer); err != nil {
 		t.Fatal(err)
 	}
 	var got Timer
-	if !ReadStateKey(p.StateFile, "current", &got) {
+	if !ReadStateKey(p.StateFile, StateKeyCurrent, &got) {
 		t.Fatal("expected to read current key")
 	}
 	if got.Task != "test" || got.StartedEpoch != 1000 || got.Duration != 300 {
@@ -79,11 +79,11 @@ func TestWriteStateKey_WritesKey(t *testing.T) {
 
 func TestWriteStateKey_PreservesOtherKeys(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, "current", &Timer{Task: "work", StartedEpoch: 1, Duration: 60})
-	WriteStateKey(p, "last", &LastTimer{Duration: 1, Task: "work"})
+	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "work", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyLast, &LastTimer{Duration: 1, Task: "work"})
 
 	var timer Timer
-	if !ReadStateKey(p.StateFile, "current", &timer) {
+	if !ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current key to be preserved")
 	}
 	if timer.Task != "work" {
@@ -94,7 +94,7 @@ func TestWriteStateKey_PreservesOtherKeys(t *testing.T) {
 func TestWriteStateKey_CreatesConfigDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "new", "config")
 	p := Paths{ConfigDir: dir, StateFile: filepath.Join(dir, "state.json")}
-	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
 	if _, err := os.Stat(filepath.Join(dir, "state.json")); err != nil {
 		t.Errorf("state file not created: %v", err)
 	}
@@ -102,16 +102,16 @@ func TestWriteStateKey_CreatesConfigDir(t *testing.T) {
 
 func TestReadStateKey_NoFileReturnsFalse(t *testing.T) {
 	var timer Timer
-	if ReadStateKey("/nonexistent", "current", &timer) {
+	if ReadStateKey("/nonexistent", StateKeyCurrent, &timer) {
 		t.Error("expected false for missing file")
 	}
 }
 
 func TestReadStateKey_MissingKeyReturnsFalse(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
 	var lt LastTimer
-	if ReadStateKey(p.StateFile, "last", &lt) {
+	if ReadStateKey(p.StateFile, StateKeyLast, &lt) {
 		t.Error("expected false for missing key")
 	}
 }
@@ -120,7 +120,7 @@ func TestReadStateKey_CorruptJSONReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte("{invalid json"), 0o644)
 	var timer Timer
-	if ReadStateKey(p.StateFile, "current", &timer) {
+	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected false for corrupt JSON")
 	}
 }
@@ -129,25 +129,25 @@ func TestReadStateKey_EmptyFileReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte(""), 0o644)
 	var timer Timer
-	if ReadStateKey(p.StateFile, "current", &timer) {
+	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected false for empty file")
 	}
 }
 
 func TestClearStateKey_PreservesOtherKeys(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
-	WriteStateKey(p, "last", &LastTimer{Duration: 1, Task: "t"})
+	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyLast, &LastTimer{Duration: 1, Task: "t"})
 
-	if err := ClearStateKey(p, "current"); err != nil {
+	if err := ClearStateKey(p, StateKeyCurrent); err != nil {
 		t.Fatal(err)
 	}
 	var timer Timer
-	if ReadStateKey(p.StateFile, "current", &timer) {
+	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be gone")
 	}
 	var lt LastTimer
-	if !ReadStateKey(p.StateFile, "last", &lt) {
+	if !ReadStateKey(p.StateFile, StateKeyLast, &lt) {
 		t.Fatal("expected last to be preserved")
 	}
 	if lt.Task != "t" {
@@ -157,9 +157,9 @@ func TestClearStateKey_PreservesOtherKeys(t *testing.T) {
 
 func TestClearStateKey_RemovesFileWhenEmpty(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, "current", &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
 
-	if err := ClearStateKey(p, "current"); err != nil {
+	if err := ClearStateKey(p, StateKeyCurrent); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(p.StateFile); !os.IsNotExist(err) {
@@ -169,7 +169,7 @@ func TestClearStateKey_RemovesFileWhenEmpty(t *testing.T) {
 
 func TestClearStateKey_NoFile(t *testing.T) {
 	p := testPaths(t)
-	if err := ClearStateKey(p, "current"); err != nil {
+	if err := ClearStateKey(p, StateKeyCurrent); err != nil {
 		t.Errorf("clear with no file should not error: %v", err)
 	}
 }

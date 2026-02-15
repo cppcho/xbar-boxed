@@ -31,7 +31,7 @@ func TestCmdStart_Basic(t *testing.T) {
 	app.CmdStart([]string{"25", "my", "task"})
 
 	var timer Timer
-	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
 	if timer.Task != "my task" {
@@ -50,7 +50,7 @@ func TestCmdStart_SavesLastTimer(t *testing.T) {
 	app.CmdStart([]string{"10", "quick"})
 
 	var lt LastTimer
-	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyLast, &lt) {
 		t.Fatal("expected last timer")
 	}
 	if lt.Duration != 10 {
@@ -102,7 +102,7 @@ func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 	app.CmdStart([]string{"10", "second"})
 
 	var timer Timer
-	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
 	if timer.Task != "second" {
@@ -122,7 +122,7 @@ func TestCmdStart_ReplacesExpiredTimer(t *testing.T) {
 	app.CmdStart([]string{"10", "next"})
 
 	var timer Timer
-	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
 	if timer.Task != "next" {
@@ -205,11 +205,11 @@ func TestCmdStop_RunningTimer(t *testing.T) {
 	app.CmdStop([]string{})
 
 	var timer Timer
-	if ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be cleared")
 	}
 	var lt LastTimer
-	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyLast, &lt) {
 		t.Error("expected last to be preserved")
 	}
 	if !strings.Contains(stdout.String(), "stopped") {
@@ -248,11 +248,11 @@ func TestCmdStop_ExpiredTimerClearsState(t *testing.T) {
 	app.CmdStop([]string{})
 
 	var timer Timer
-	if ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be cleared")
 	}
 	var lt LastTimer
-	if !ReadStateKey(app.Paths.StateFile, "last", &lt) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyLast, &lt) {
 		t.Error("expected last to be preserved")
 	}
 	if !strings.Contains(stdout.String(), "Cleared") {
@@ -323,7 +323,7 @@ func TestCmdComplete_MarksNotified(t *testing.T) {
 	app.CmdComplete([]string{})
 
 	var timer Timer
-	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
 	if !timer.Notified {
@@ -420,7 +420,7 @@ func TestCmdAgain_RepeatsLast(t *testing.T) {
 	app.CmdAgain([]string{})
 
 	var timer Timer
-	if !ReadStateKey(app.Paths.StateFile, "current", &timer) {
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
 	if timer.Task != "repeated" {
