@@ -9,11 +9,10 @@ import (
 
 // XbarApp holds dependencies for the xbar plugin.
 type XbarApp struct {
-	Paths    Paths
-	Runner   CommandRunner
-	NowFunc  func() time.Time
-	Stdout   io.Writer
-	BoxedBin string // path to the boxed CLI binary
+	Paths   Paths
+	Runner  CommandRunner
+	NowFunc func() time.Time
+	Stdout  io.Writer
 }
 
 // Run renders the xbar menu bar output.
@@ -31,8 +30,7 @@ func (x *XbarApp) Run() {
 
 		if remaining <= 0 {
 			if !timer.Notified {
-				// TODO: move complete to common method
-				x.Runner.Run(x.BoxedBin, "complete")
+				CompleteTimer(x.Paths, x.Runner, x.NowFunc)
 			}
 			x.out("📦")
 		} else {

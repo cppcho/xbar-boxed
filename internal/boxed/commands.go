@@ -72,15 +72,20 @@ func (a *App) CmdStart(args []string) error {
 
 // CmdComplete is called by the xbar plugin when a timer expires.
 func (a *App) CmdComplete(args []string) error {
+	return CompleteTimer(a.Paths, a.Runner, a.NowFunc)
+}
+
+// CompleteTimer marks an expired timer as notified, logs it, and sends a notification.
+func CompleteTimer(paths Paths, runner CommandRunner, nowFunc func() time.Time) error {
 	var timer CurrentTimer
-	if !ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &timer) {
+	if !ReadStateKey(paths.StateFile, StateKeyCurrent, &timer) {
 		return nil
 	}
 	if timer.Notified {
 		return nil
 	}
 
-	now := a.NowFunc()
+	now := nowFunc()
 	elapsed := now.Sub(timer.StartedAt)
 	if elapsed < timer.Duration {
 		return nil
@@ -90,16 +95,16 @@ func (a *App) CmdComplete(args []string) error {
 	if task == "" {
 		task = "Untitled"
 	}
-	config := ReadConfig(a.Paths.ConfigFile)
+	config := ReadConfig(paths.ConfigFile)
 
-	LogEnd(a.Paths, timer.StartedAt, timer.Duration, task, true, a.NowFunc)
-	Notify(a.Runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
+	LogEnd(paths, timer.StartedAt, timer.Duration, task, true, nowFunc)
+	Notify(runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
 	if config.NotifySound {
-		PlaySoundByName(a.Runner, "Glass")
+		PlaySoundByName(runner, "Glass")
 	}
 
 	timer.Notified = true
-	WriteStateKey(a.Paths, StateKeyCurrent, &timer)
+	WriteStateKey(paths, StateKeyCurrent, &timer)
 	return nil
 }
 

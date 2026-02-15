@@ -13,11 +13,10 @@ func testXbarApp(t *testing.T) (*XbarApp, *RecordingRunner, *bytes.Buffer) {
 	runner := &RecordingRunner{}
 	stdout := &bytes.Buffer{}
 	return &XbarApp{
-		Paths:    p,
-		Runner:   runner,
-		NowFunc:  func() time.Time { return time.Unix(1700000000, 0) },
-		Stdout:   stdout,
-		BoxedBin: "/usr/local/bin/boxed",
+		Paths:   p,
+		Runner:  runner,
+		NowFunc: func() time.Time { return time.Unix(1700000000, 0) },
+		Stdout:  stdout,
 	}, runner, stdout
 }
 
@@ -112,7 +111,7 @@ func TestXbar_ExpiredTimer_ShowsBoxEmoji(t *testing.T) {
 	}
 }
 
-func TestXbar_ExpiredNotNotified_CallsComplete(t *testing.T) {
+func TestXbar_ExpiredNotNotified_CompletesTimer(t *testing.T) {
 	x, runner, _ := testXbarApp(t)
 	now := time.Unix(1700000000, 0)
 	writeCurrentTimer(t, x.Paths, &CurrentTimer{
@@ -123,18 +122,34 @@ func TestXbar_ExpiredNotNotified_CallsComplete(t *testing.T) {
 	x.NowFunc = func() time.Time { return now.Add(120 * time.Second) }
 	x.Run()
 
-	if len(runner.Runs) == 0 {
-		t.Fatal("expected Run call for 'complete'")
+	// Timer should be marked as notified
+	var timer CurrentTimer
+	if !ReadStateKey(x.Paths.StateFile, StateKeyCurrent, &timer) {
+		t.Fatal("expected timer to still exist in state")
 	}
-	found := false
+	if !timer.Notified {
+		t.Error("expected timer to be marked as notified")
+	}
+
+	// Should have sent notification via osascript
+	foundNotify := false
 	for _, r := range runner.Runs {
-		if strings.Contains(r, "complete") {
-			found = true
+		if strings.Contains(r, "osascript") {
+			foundNotify = true
 			break
 		}
 	}
-	if !found {
-		t.Errorf("expected 'complete' command, got %v", runner.Runs)
+	if !foundNotify {
+		t.Errorf("expected osascript notification, got runs: %v", runner.Runs)
+	}
+
+	// Log file should contain a completed entry
+	logData, err := os.ReadFile(x.Paths.LogFile)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+	if !strings.Contains(string(logData), "✓") {
+		t.Errorf("expected checkmark in log, got: %s", string(logData))
 	}
 }
 
