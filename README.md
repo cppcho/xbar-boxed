@@ -10,17 +10,22 @@ boxed start 25 Write the report
 
 # Stop the current timer
 boxed stop
+
+# Repeat the last timer
+boxed again
+
+# Mark an expired timer as complete
+boxed complete
 ```
 
 The menu bar shows the task name and remaining time while a timer is running. When time's up, you get a macOS notification.
 
 ## Install
 
-Requires [xbar](https://xbarapp.com/) and Python 3 and stow installed
+Requires [xbar](https://xbarapp.com/) and Go installed.
 
 ```bash
-# Uses GNU Stow to symlink files into place
-./install.sh
+make install
 ```
 
 ## Configuration

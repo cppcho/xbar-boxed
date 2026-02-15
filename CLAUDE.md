@@ -9,7 +9,7 @@ Boxed is a macOS menu bar timeboxing timer built as an [xbar](https://xbarapp.co
 ## Architecture
 
 - **`cmd/boxed/main.go`** — CLI entrypoint (`boxed start <minutes> <task>`, `boxed stop`, `boxed again`, `boxed complete`). Dispatches to `App` struct in `internal/boxed/commands.go`.
-- **`cmd/boxed-xbar/main.go`** — xbar plugin entrypoint. Creates `XbarApp` and calls `Run()`. The installed binary is named `boxed.1s` so xbar runs it every 1 second.
+- **`cmd/boxed-xbar/main.go`** — xbar plugin entrypoint. Creates `XbarApp` and calls `Run()`. The installed binary is named `boxed.1s.cgo` so xbar runs it every 1 second.
 - **`internal/boxed/`** — All shared logic: paths, config, state, logging, notifications, sound, commands, and xbar rendering.
 
 Both binaries share the same config directory (`~/.config/boxed/`) with:
