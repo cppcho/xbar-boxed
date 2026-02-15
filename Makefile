@@ -6,6 +6,8 @@ build:
 	go build -o build/boxed-xbar ./cmd/boxed-xbar
 
 install: build
+	mkdir -p ~/bin
+	mkdir -p ~/Library/Application\ Support/xbar/plugins/
 	cp build/boxed ~/bin/boxed
 	cp build/boxed-xbar ~/Library/Application\ Support/xbar/plugins/boxed.1s.cgo
 	mkdir -p ~/.local/lib/boxed/sounds
@@ -18,12 +20,12 @@ lint:
 	go vet ./...
 
 clean:
-	rm -rf build
+	rm -r build
 
 uninstall:
-	rm -f ~/bin/boxed
-	rm -f ~/Library/Application\ Support/xbar/plugins/boxed.1s.cgo
-	rm -rf ~/.local/lib/boxed/
+	rm ~/bin/boxed
+	rm ~/Library/Application\ Support/xbar/plugins/boxed.1s.cgo
+	rm -r ~/.local/lib/boxed/
 
 fmt:
 	gofmt -w .
