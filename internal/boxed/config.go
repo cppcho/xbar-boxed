@@ -8,8 +8,9 @@ import (
 
 // Config holds typed configuration values.
 type Config struct {
-	NotifySound  bool // default: true
-	TickInterval int  // minutes, default: 0 (disabled)
+	NotifySound bool // default: true
+	// TODO: rename specifc minutes
+	TickInterval int // minutes, default: 0 (disabled)
 }
 
 // DefaultConfig returns the default configuration.

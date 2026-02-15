@@ -30,7 +30,7 @@ func TestCmdStart_Basic(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "my", "task"})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
@@ -101,7 +101,7 @@ func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000060, 0) }
 	app.CmdStart([]string{"10", "second"})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
@@ -121,7 +121,7 @@ func TestCmdStart_ReplacesExpiredTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStart([]string{"10", "next"})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
@@ -204,7 +204,7 @@ func TestCmdStop_RunningTimer(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be cleared")
 	}
@@ -247,7 +247,7 @@ func TestCmdStop_ExpiredTimerClearsState(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStop([]string{})
 
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be cleared")
 	}
@@ -322,7 +322,7 @@ func TestCmdComplete_MarksNotified(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}
@@ -419,7 +419,7 @@ func TestCmdAgain_RepeatsLast(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700002000, 0) }
 	app.CmdAgain([]string{})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current timer")
 	}

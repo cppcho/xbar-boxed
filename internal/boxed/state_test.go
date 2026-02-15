@@ -64,11 +64,11 @@ func TestAtomicWriteJSON_NoLeftoverTmpFiles(t *testing.T) {
 
 func TestWriteStateKey_WritesKey(t *testing.T) {
 	p := testPaths(t)
-	timer := &Timer{Task: "test", StartedEpoch: 1000, Duration: 300}
+	timer := &CurrentTimer{Task: "test", StartedEpoch: 1000, Duration: 300}
 	if err := WriteStateKey(p, StateKeyCurrent, timer); err != nil {
 		t.Fatal(err)
 	}
-	var got Timer
+	var got CurrentTimer
 	if !ReadStateKey(p.StateFile, StateKeyCurrent, &got) {
 		t.Fatal("expected to read current key")
 	}
@@ -79,10 +79,10 @@ func TestWriteStateKey_WritesKey(t *testing.T) {
 
 func TestWriteStateKey_PreservesOtherKeys(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "work", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &CurrentTimer{Task: "work", StartedEpoch: 1, Duration: 60})
 	WriteStateKey(p, StateKeyLast, &LastTimer{Duration: 1, Task: "work"})
 
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Fatal("expected current key to be preserved")
 	}
@@ -94,14 +94,14 @@ func TestWriteStateKey_PreservesOtherKeys(t *testing.T) {
 func TestWriteStateKey_CreatesConfigDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "new", "config")
 	p := Paths{ConfigDir: dir, StateFile: filepath.Join(dir, "state.json")}
-	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &CurrentTimer{Task: "t", StartedEpoch: 1, Duration: 60})
 	if _, err := os.Stat(filepath.Join(dir, "state.json")); err != nil {
 		t.Errorf("state file not created: %v", err)
 	}
 }
 
 func TestReadStateKey_NoFileReturnsFalse(t *testing.T) {
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey("/nonexistent", StateKeyCurrent, &timer) {
 		t.Error("expected false for missing file")
 	}
@@ -109,7 +109,7 @@ func TestReadStateKey_NoFileReturnsFalse(t *testing.T) {
 
 func TestReadStateKey_MissingKeyReturnsFalse(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &CurrentTimer{Task: "t", StartedEpoch: 1, Duration: 60})
 	var lt LastTimer
 	if ReadStateKey(p.StateFile, StateKeyLast, &lt) {
 		t.Error("expected false for missing key")
@@ -119,7 +119,7 @@ func TestReadStateKey_MissingKeyReturnsFalse(t *testing.T) {
 func TestReadStateKey_CorruptJSONReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte("{invalid json"), 0o644)
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected false for corrupt JSON")
 	}
@@ -128,7 +128,7 @@ func TestReadStateKey_CorruptJSONReturnsFalse(t *testing.T) {
 func TestReadStateKey_EmptyFileReturnsFalse(t *testing.T) {
 	p := testPaths(t)
 	os.WriteFile(p.StateFile, []byte(""), 0o644)
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected false for empty file")
 	}
@@ -136,13 +136,13 @@ func TestReadStateKey_EmptyFileReturnsFalse(t *testing.T) {
 
 func TestClearStateKey_PreservesOtherKeys(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &CurrentTimer{Task: "t", StartedEpoch: 1, Duration: 60})
 	WriteStateKey(p, StateKeyLast, &LastTimer{Duration: 1, Task: "t"})
 
 	if err := ClearStateKey(p, StateKeyCurrent); err != nil {
 		t.Fatal(err)
 	}
-	var timer Timer
+	var timer CurrentTimer
 	if ReadStateKey(p.StateFile, StateKeyCurrent, &timer) {
 		t.Error("expected current to be gone")
 	}
@@ -157,7 +157,7 @@ func TestClearStateKey_PreservesOtherKeys(t *testing.T) {
 
 func TestClearStateKey_RemovesFileWhenEmpty(t *testing.T) {
 	p := testPaths(t)
-	WriteStateKey(p, StateKeyCurrent, &Timer{Task: "t", StartedEpoch: 1, Duration: 60})
+	WriteStateKey(p, StateKeyCurrent, &CurrentTimer{Task: "t", StartedEpoch: 1, Duration: 60})
 
 	if err := ClearStateKey(p, StateKeyCurrent); err != nil {
 		t.Fatal(err)

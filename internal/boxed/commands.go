@@ -34,7 +34,7 @@ func (a *App) CmdStart(args []string) error {
 	task := strings.Join(args[1:], " ")
 
 	// If timer already running, stop it first
-	var old Timer
+	var old CurrentTimer
 	now := a.NowFunc()
 	if ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &old) {
 		oldTask := old.Task
@@ -53,7 +53,7 @@ func (a *App) CmdStart(args []string) error {
 
 	durationSecs := durationMins * 60
 	duration := time.Duration(durationSecs) * time.Second
-	WriteStateKey(a.Paths, StateKeyCurrent, &Timer{
+	WriteStateKey(a.Paths, StateKeyCurrent, &CurrentTimer{
 		Task:         task,
 		StartedEpoch: now.Unix(),
 		Duration:     durationSecs,
@@ -75,7 +75,7 @@ func (a *App) CmdStart(args []string) error {
 
 // CmdComplete is called by the xbar plugin when a timer expires.
 func (a *App) CmdComplete(args []string) error {
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &timer) {
 		return nil
 	}
@@ -120,7 +120,7 @@ func (a *App) CmdAgain(args []string) error {
 
 // CmdStop stops the current timer.
 func (a *App) CmdStop(args []string) error {
-	var timer Timer
+	var timer CurrentTimer
 	if !ReadStateKey(a.Paths.StateFile, StateKeyCurrent, &timer) {
 		fmt.Fprintln(a.Stderr, "No timer running.")
 		return fmt.Errorf("exit 1")

@@ -15,8 +15,8 @@ const (
 	StateKeyLast    StateKey = "last"
 )
 
-// Timer represents an active timer's fields.
-type Timer struct {
+// CurrentTimer represents an active timer's fields.
+type CurrentTimer struct {
 	Task          string `json:"task"`
 	StartedEpoch  int64  `json:"started_epoch"`
 	Duration      int    `json:"duration"`
