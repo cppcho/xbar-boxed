@@ -74,7 +74,6 @@ func TestReadConfig_BlankLinesSkipped(t *testing.T) {
 	}
 }
 
-
 func TestEnsureConfig_CreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	p := Paths{ConfigDir: dir, ConfigFile: filepath.Join(dir, "config")}

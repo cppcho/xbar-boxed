@@ -30,8 +30,8 @@ func (r RealRunner) Start(name string, args ...string) error {
 
 // RecordingRunner captures command invocations for testing.
 type RecordingRunner struct {
-	mu   sync.Mutex
-	Runs []string
+	mu     sync.Mutex
+	Runs   []string
 	Starts []string
 }
 
