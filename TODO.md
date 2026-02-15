@@ -1,0 +1,3 @@
+- add link to open the config dir
+- update the menu bar icon
+- add icon to the osx notification?
