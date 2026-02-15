@@ -14,7 +14,7 @@ func main() {
 	x := &boxed.XbarApp{
 		Paths:    p,
 		Runner:   boxed.RealRunner{},
-		NowFunc:  func() int64 { return time.Now().Unix() },
+		NowFunc:  time.Now,
 		Stdout:   os.Stdout,
 		BoxedBin: home + "/bin/boxed",
 	}

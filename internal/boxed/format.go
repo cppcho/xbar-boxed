@@ -1,9 +1,13 @@
 package boxed
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// FormatDuration formats seconds as "1h30m", "25m", or "45s".
-func FormatDuration(seconds int) string {
+// FormatDuration formats a time.Duration as "1h30m", "25m", or "45s".
+func FormatDuration(d time.Duration) string {
+	seconds := int(d.Seconds())
 	if seconds >= 3600 {
 		h := seconds / 3600
 		m := (seconds % 3600) / 60

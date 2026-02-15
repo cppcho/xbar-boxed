@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testApp(t *testing.T) (*App, *RecordingRunner, *bytes.Buffer, *bytes.Buffer) {
@@ -17,7 +18,7 @@ func testApp(t *testing.T) (*App, *RecordingRunner, *bytes.Buffer, *bytes.Buffer
 	app := &App{
 		Paths:   p,
 		Runner:  runner,
-		NowFunc: func() int64 { return 1700000000 },
+		NowFunc: func() time.Time { return time.Unix(1700000000, 0) },
 		Stdout:  stdout,
 		Stderr:  stderr,
 	}
@@ -28,7 +29,7 @@ func testApp(t *testing.T) (*App, *RecordingRunner, *bytes.Buffer, *bytes.Buffer
 
 func TestCmdStart_Basic(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "my", "task"})
 
 	data, _ := os.ReadFile(app.Paths.StateFile)
@@ -94,10 +95,10 @@ func TestCmdStart_NoSoundWhenDisabled(t *testing.T) {
 
 func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "first"})
 
-	app.NowFunc = func() int64 { return 1700000060 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000060, 0) }
 	app.CmdStart([]string{"10", "second"})
 
 	data, _ := os.ReadFile(app.Paths.StateFile)
@@ -113,10 +114,10 @@ func TestCmdStart_ReplacesRunningTimer(t *testing.T) {
 
 func TestCmdStart_ReplacesExpiredTimer(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "short"})
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStart([]string{"10", "next"})
 
 	data, _ := os.ReadFile(app.Paths.StateFile)
@@ -194,11 +195,11 @@ func TestCmdStart_NegativeDuration(t *testing.T) {
 
 func TestCmdStop_RunningTimer(t *testing.T) {
 	app, _, stdout, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "work"})
 	stdout.Reset()
 
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
 	if _, err := os.Stat(app.Paths.StateFile); !os.IsNotExist(err) {
@@ -211,11 +212,11 @@ func TestCmdStop_RunningTimer(t *testing.T) {
 
 func TestCmdStop_SendsNotification(t *testing.T) {
 	app, runner, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "work"})
 	runner.Runs = nil
 
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
 	found := false
@@ -232,11 +233,11 @@ func TestCmdStop_SendsNotification(t *testing.T) {
 
 func TestCmdStop_ExpiredTimerClearsState(t *testing.T) {
 	app, _, stdout, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "short"})
 	stdout.Reset()
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdStop([]string{})
 
 	if _, err := os.Stat(app.Paths.StateFile); !os.IsNotExist(err) {
@@ -257,10 +258,10 @@ func TestCmdStop_NoTimer(t *testing.T) {
 
 func TestCmdStop_LogsCrossMarker(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "stopped"})
 
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
 	data, _ := os.ReadFile(app.Paths.LogFile)
@@ -272,11 +273,11 @@ func TestCmdStop_LogsCrossMarker(t *testing.T) {
 func TestCmdStop_PlaysSoundWhenEnabled(t *testing.T) {
 	app, runner, _, _ := testApp(t)
 	os.WriteFile(app.Paths.ConfigFile, []byte("notify_sound = true\n"), 0o644)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "work"})
 	runner.Starts = nil
 
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
 	if len(runner.Starts) != 1 {
@@ -287,11 +288,11 @@ func TestCmdStop_PlaysSoundWhenEnabled(t *testing.T) {
 func TestCmdStop_NoSoundWhenDisabled(t *testing.T) {
 	app, runner, _, _ := testApp(t)
 	os.WriteFile(app.Paths.ConfigFile, []byte("notify_sound = false\n"), 0o644)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "quiet"})
 	runner.Starts = nil
 
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
 	if len(runner.Starts) != 0 {
@@ -303,10 +304,10 @@ func TestCmdStop_NoSoundWhenDisabled(t *testing.T) {
 
 func TestCmdComplete_MarksNotified(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "done"})
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 
 	data, _ := os.ReadFile(app.Paths.StateFile)
@@ -319,11 +320,11 @@ func TestCmdComplete_MarksNotified(t *testing.T) {
 
 func TestCmdComplete_SendsNotification(t *testing.T) {
 	app, runner, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "done"})
 	runner.Runs = nil
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 
 	found := false
@@ -340,10 +341,10 @@ func TestCmdComplete_SendsNotification(t *testing.T) {
 
 func TestCmdComplete_Idempotent(t *testing.T) {
 	app, runner, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "done"})
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 	runner.Runs = nil
 
@@ -358,12 +359,12 @@ func TestCmdComplete_Idempotent(t *testing.T) {
 
 func TestCmdComplete_NotExpiredYet(t *testing.T) {
 	app, runner, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "running"})
 	runner.Runs = nil
 
 	// Only 5 minutes in
-	app.NowFunc = func() int64 { return 1700000300 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdComplete([]string{})
 
 	for _, r := range runner.Runs {
@@ -383,10 +384,10 @@ func TestCmdComplete_NoState(t *testing.T) {
 
 func TestCmdComplete_LogsCheckmark(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"1", "finished"})
 
-	app.NowFunc = func() int64 { return 1700000120 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000120, 0) }
 	app.CmdComplete([]string{})
 
 	data, _ := os.ReadFile(app.Paths.LogFile)
@@ -399,10 +400,10 @@ func TestCmdComplete_LogsCheckmark(t *testing.T) {
 
 func TestCmdAgain_RepeatsLast(t *testing.T) {
 	app, _, _, _ := testApp(t)
-	app.NowFunc = func() int64 { return 1700000000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700000000, 0) }
 	app.CmdStart([]string{"25", "repeated"})
 
-	app.NowFunc = func() int64 { return 1700002000 }
+	app.NowFunc = func() time.Time { return time.Unix(1700002000, 0) }
 	app.CmdAgain([]string{})
 
 	data, _ := os.ReadFile(app.Paths.StateFile)

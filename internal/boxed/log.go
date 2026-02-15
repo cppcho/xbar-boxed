@@ -3,6 +3,7 @@ package boxed
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -11,6 +12,7 @@ import (
 // Dates are ordered newest-first; entries within a date are chronological.
 func InsertEntryInLog(content, dateStr, entryLine string) string {
 	header := "# " + dateStr
+
 	var lines []string
 	if content != "" {
 		lines = strings.Split(content, "\n")
@@ -88,7 +90,7 @@ func writeLog(p Paths, content string) error {
 
 // atomicWriteText writes text atomically via temp file + fsync + rename.
 func atomicWriteText(filePath, text string) error {
-	dir := dirOf(filePath)
+	dir := filepath.Dir(filePath)
 	tmp, err := os.CreateTemp(dir, "*.tmp")
 	if err != nil {
 		return err
@@ -112,46 +114,35 @@ func atomicWriteText(filePath, text string) error {
 	return os.Rename(tmpName, filePath)
 }
 
-func dirOf(path string) string {
-	for i := len(path) - 1; i >= 0; i-- {
-		if path[i] == '/' {
-			return path[:i]
-		}
-	}
-	return "."
-}
-
 // LogStart logs a partial entry for a timer that just started.
-func LogStart(p Paths, startedEpoch int64, durationSecs int, task string) error {
+func LogStart(p Paths, started time.Time, duration time.Duration, task string) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
-	dt := time.Unix(startedEpoch, 0)
-	dateStr := dt.Format("2006-01-02")
-	timeStr := dt.Format("15:04:05")
-	entry := fmt.Sprintf("%s - ... %s (%s)", timeStr, task, FormatDuration(durationSecs))
+	dateStr := started.Format("2006-01-02")
+	timeStr := started.Format("15:04:05")
+	entry := fmt.Sprintf("%s - ... %s (%s)", timeStr, task, FormatDuration(duration))
 	content := readLog(p)
 	content = InsertEntryInLog(content, dateStr, entry)
 	return writeLog(p, content)
 }
 
 // LogEnd updates a partial log entry to its final form, or appends if not found.
-func LogEnd(p Paths, startedEpoch int64, durationSecs int, task string, completed bool, nowFunc func() int64) error {
+func LogEnd(p Paths, started time.Time, duration time.Duration, task string, completed bool, nowFunc func() time.Time) error {
 	if err := p.EnsureDirs(); err != nil {
 		return err
 	}
-	dt := time.Unix(startedEpoch, 0)
-	dateStr := dt.Format("2006-01-02")
-	startTime := dt.Format("15:04:05")
+	dateStr := started.Format("2006-01-02")
+	startTime := started.Format("15:04:05")
 	now := nowFunc()
-	endTime := time.Unix(now, 0).Format("15:04:05")
+	endTime := now.Format("15:04:05")
 
 	symbol := "✕"
 	if completed {
 		symbol = "✓"
 	}
-	elapsed := int(now - startedEpoch)
-	configuredDur := FormatDuration(durationSecs)
+	elapsed := now.Sub(started)
+	configuredDur := FormatDuration(duration)
 	elapsedDur := FormatDuration(elapsed)
 
 	partial := fmt.Sprintf("%s - ... %s (%s)", startTime, task, configuredDur)

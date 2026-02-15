@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"time"
 )
 
 // XbarApp holds dependencies for the xbar plugin.
 type XbarApp struct {
 	Paths    Paths
 	Runner   CommandRunner
-	NowFunc  func() int64
+	NowFunc  func() time.Time
 	Stdout   io.Writer
 	BoxedBin string // path to the boxed CLI binary
 }
@@ -24,10 +25,10 @@ func (x *XbarApp) Run() {
 		if task == "" {
 			task = "Untitled"
 		}
-		duration := state.Duration
-		started := state.StartedEpoch
 		now := x.NowFunc()
-		remaining := started + int64(duration) - now
+		started := time.Unix(state.StartedEpoch, 0)
+		duration := time.Duration(state.Duration) * time.Second
+		remaining := duration - now.Sub(started)
 
 		if remaining <= 0 {
 			if !state.Notified {
@@ -39,18 +40,18 @@ func (x *XbarApp) Run() {
 		} else {
 			config := ReadConfig(x.Paths.ConfigFile)
 			if config.TickInterval > 0 {
-				intervalSecs := int64(config.TickInterval * 60)
-				lastTick := state.LastTickEpoch
-				if lastTick == 0 {
+				intervalDur := time.Duration(config.TickInterval) * time.Minute
+				lastTick := time.Unix(state.LastTickEpoch, 0)
+				if state.LastTickEpoch == 0 {
 					lastTick = started
 				}
-				if now-lastTick >= intervalSecs {
+				if now.Sub(lastTick) >= intervalDur {
 					PlaySoundFile(x.Runner, filepath.Join(x.Paths.SoundsDir, "PeonYes3.ogg"))
-					state.LastTickEpoch = now
+					state.LastTickEpoch = now.Unix()
 					WriteStateFull(x.Paths, state)
 				}
 			}
-			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(int(remaining))))
+			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(remaining)))
 		}
 		x.out("---")
 	} else {

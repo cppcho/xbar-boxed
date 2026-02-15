@@ -69,14 +69,13 @@ func TestInsertEntryInLog_EndsWithNewline(t *testing.T) {
 
 func TestLogStart_CreatesLogFile(t *testing.T) {
 	p := testPaths(t)
-	epoch := int64(1705312800)
-	if err := LogStart(p, epoch, 1500, "my task"); err != nil {
+	started := time.Unix(1705312800, 0)
+	if err := LogStart(p, started, 25*time.Minute, "my task"); err != nil {
 		t.Fatal(err)
 	}
 	content := readLog(p)
-	dt := time.Unix(epoch, 0)
-	dateStr := dt.Format("2006-01-02")
-	timeStr := dt.Format("15:04:05")
+	dateStr := started.Format("2006-01-02")
+	timeStr := started.Format("15:04:05")
 	if !strings.Contains(content, "# "+dateStr) {
 		t.Error("expected date header in log")
 	}
@@ -87,10 +86,10 @@ func TestLogStart_CreatesLogFile(t *testing.T) {
 
 func TestLogStart_PartialEntryFormat(t *testing.T) {
 	p := testPaths(t)
-	epoch := int64(1705312800)
-	LogStart(p, epoch, 300, "quick")
+	started := time.Unix(1705312800, 0)
+	LogStart(p, started, 5*time.Minute, "quick")
 	content := readLog(p)
-	timeStr := time.Unix(epoch, 0).Format("15:04:05")
+	timeStr := started.Format("15:04:05")
 	if !strings.Contains(content, timeStr+" - ... quick (5m)") {
 		t.Errorf("expected partial entry format, got:\n%s", content)
 	}
@@ -98,9 +97,8 @@ func TestLogStart_PartialEntryFormat(t *testing.T) {
 
 func TestLogEnd_ReplacesPartialEntry(t *testing.T) {
 	p := testPaths(t)
-	started := int64(1705312800)
-	duration := 1500 // 25m
-	endTime := started + int64(duration)
+	started := time.Unix(1705312800, 0)
+	duration := 25 * time.Minute
 
 	LogStart(p, started, duration, "my task")
 	contentBefore := readLog(p)
@@ -108,7 +106,7 @@ func TestLogEnd_ReplacesPartialEntry(t *testing.T) {
 		t.Error("expected partial entry with ...")
 	}
 
-	LogEnd(p, started, duration, "my task", true, func() int64 { return endTime })
+	LogEnd(p, started, duration, "my task", true, func() time.Time { return started.Add(duration) })
 	content := readLog(p)
 	if strings.Contains(content, "...") {
 		t.Error("partial entry should be replaced")
@@ -120,12 +118,11 @@ func TestLogEnd_ReplacesPartialEntry(t *testing.T) {
 
 func TestLogEnd_StoppedMarker(t *testing.T) {
 	p := testPaths(t)
-	started := int64(1705312800)
-	duration := 1500
-	endTime := started + 600 // stopped early
+	started := time.Unix(1705312800, 0)
+	duration := 25 * time.Minute
 
 	LogStart(p, started, duration, "aborted")
-	LogEnd(p, started, duration, "aborted", false, func() int64 { return endTime })
+	LogEnd(p, started, duration, "aborted", false, func() time.Time { return started.Add(10 * time.Minute) })
 	content := readLog(p)
 	if !strings.Contains(content, "✕") {
 		t.Error("expected cross marker")
@@ -134,11 +131,11 @@ func TestLogEnd_StoppedMarker(t *testing.T) {
 
 func TestLogEnd_FallbackWhenNoPartial(t *testing.T) {
 	p := testPaths(t)
-	started := int64(1705312800)
-	endTime := started + 300
+	started := time.Unix(1705312800, 0)
+	duration := 5 * time.Minute
 
 	// Log end without a preceding log_start
-	LogEnd(p, started, 300, "orphan", true, func() int64 { return endTime })
+	LogEnd(p, started, duration, "orphan", true, func() time.Time { return started.Add(duration) })
 	content := readLog(p)
 	if !strings.Contains(content, "orphan") {
 		t.Error("expected orphan entry")

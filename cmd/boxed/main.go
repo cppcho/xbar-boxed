@@ -22,7 +22,7 @@ func main() {
 	app := &boxed.App{
 		Paths:   p,
 		Runner:  boxed.RealRunner{},
-		NowFunc: func() int64 { return time.Now().Unix() },
+		NowFunc: time.Now,
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
 	}

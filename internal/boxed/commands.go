@@ -6,13 +6,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // App holds dependencies for CLI commands.
 type App struct {
 	Paths   Paths
 	Runner  CommandRunner
-	NowFunc func() int64
+	NowFunc func() time.Time
 	Stdout  io.Writer
 	Stderr  io.Writer
 }
@@ -40,10 +41,10 @@ func (a *App) CmdStart(args []string) error {
 		if oldTask == "" {
 			oldTask = "Untitled"
 		}
-		oldStarted := state.StartedEpoch
-		oldDuration := state.Duration
-		oldElapsed := now - oldStarted
-		if oldElapsed < int64(oldDuration) {
+		oldStarted := time.Unix(state.StartedEpoch, 0)
+		oldDuration := time.Duration(state.Duration) * time.Second
+		oldElapsed := now.Sub(oldStarted)
+		if oldElapsed < oldDuration {
 			LogEnd(a.Paths, oldStarted, oldDuration, oldTask, false, a.NowFunc)
 		} else {
 			LogEnd(a.Paths, oldStarted, oldDuration, oldTask, true, a.NowFunc)
@@ -53,10 +54,11 @@ func (a *App) CmdStart(args []string) error {
 	WriteLastTimer(a.Paths, durationMins, task)
 
 	durationSecs := durationMins * 60
-	WriteState(a.Paths, task, now, durationSecs)
+	duration := time.Duration(durationSecs) * time.Second
+	WriteState(a.Paths, task, now.Unix(), durationSecs)
 
 	config := ReadConfig(a.Paths.ConfigFile)
-	LogStart(a.Paths, now, durationSecs, task)
+	LogStart(a.Paths, now, duration, task)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer started: %dm — %s", durationMins, task))
 	if config.NotifySound {
 		PlaySoundFile(a.Runner, filepath.Join(a.Paths.SoundsDir, "PeonReady1.ogg"))
@@ -76,8 +78,10 @@ func (a *App) CmdComplete(args []string) error {
 	}
 
 	now := a.NowFunc()
-	elapsed := now - state.StartedEpoch
-	if elapsed < int64(state.Duration) {
+	started := time.Unix(state.StartedEpoch, 0)
+	duration := time.Duration(state.Duration) * time.Second
+	elapsed := now.Sub(started)
+	if elapsed < duration {
 		return nil
 	}
 
@@ -87,7 +91,7 @@ func (a *App) CmdComplete(args []string) error {
 	}
 	config := ReadConfig(a.Paths.ConfigFile)
 
-	LogEnd(a.Paths, state.StartedEpoch, state.Duration, task, true, a.NowFunc)
+	LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Time's up! — %s", task))
 	if config.NotifySound {
 		PlaySoundByName(a.Runner, "Glass")
@@ -121,11 +125,13 @@ func (a *App) CmdStop(args []string) error {
 	if task == "" {
 		task = "Untitled"
 	}
-	elapsed := now - state.StartedEpoch
+	started := time.Unix(state.StartedEpoch, 0)
+	duration := time.Duration(state.Duration) * time.Second
+	elapsed := now.Sub(started)
 
 	// Timer already expired — finalize and clean up
-	if elapsed >= int64(state.Duration) {
-		LogEnd(a.Paths, state.StartedEpoch, state.Duration, task, true, a.NowFunc)
+	if elapsed >= duration {
+		LogEnd(a.Paths, started, duration, task, true, a.NowFunc)
 		ClearState(a.Paths)
 		fmt.Fprintf(a.Stdout, "Cleared ended timer: %s\n", task)
 		return nil
@@ -133,8 +139,8 @@ func (a *App) CmdStop(args []string) error {
 
 	config := ReadConfig(a.Paths.ConfigFile)
 	ClearState(a.Paths)
-	LogEnd(a.Paths, state.StartedEpoch, state.Duration, task, false, a.NowFunc)
-	elapsedStr := FormatDuration(int(elapsed))
+	LogEnd(a.Paths, started, duration, task, false, a.NowFunc)
+	elapsedStr := FormatDuration(elapsed)
 	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer stopped: %s (%s elapsed)", task, elapsedStr))
 	if config.NotifySound {
 		PlaySoundByName(a.Runner, "Sosumi")

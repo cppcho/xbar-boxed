@@ -1,6 +1,9 @@
 package boxed
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
@@ -22,7 +25,7 @@ func TestFormatDuration(t *testing.T) {
 		{7261, "2h1m"},
 	}
 	for _, tt := range tests {
-		got := FormatDuration(tt.seconds)
+		got := FormatDuration(time.Duration(tt.seconds) * time.Second)
 		if got != tt.want {
 			t.Errorf("FormatDuration(%d) = %q, want %q", tt.seconds, got, tt.want)
 		}
