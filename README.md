@@ -14,6 +14,29 @@ Clicking the menu bar icon reveals options to open your config file, activity lo
 
 When a timer starts, expires, or is stopped, you get a macOS notification with an optional sound.
 
+Boxed keeps a human-readable log like the following: 
+
+```
+# 2026-02-16
+
+09:00:00 - 09:25:00 Write the report (25m0s) ✓
+09:30:00 - 09:42:15 Review PRs (12m15s) ✕
+10:00:00 - 10:50:00 Design new API (50m0s) ✓
+11:00:00 - 11:25:00 Fix login bug (25m0s) ✓
+14:00:00 - 14:10:30 Reply to emails (10m30s) ✕
+15:00:00 - 15:25:00 Write unit tests (25m0s) ✓
+
+# 2026-02-15
+
+09:15:00 - 09:40:00 Sprint planning (25m0s) ✓
+10:00:00 - 10:50:00 Implement auth flow (50m0s) ✓
+13:00:00 - 13:18:45 Code review (18m45s) ✕
+14:00:00 - 14:25:00 Update documentation (25m0s) ✓
+```
+
+- ✓ = timer completed (ran to expiry)
+- ✕ = timer stopped early
+
 ## Usage
 
 ```bash
@@ -67,31 +90,6 @@ notify_sound = true
 # Play a tick sound at regular intervals while the timer is running (default: disabled)
 tick_interval = 5m
 ```
-
-## Activity Log
-
-Boxed keeps a human-readable log at `~/.config/boxed/log`, grouped by date with newest dates first. Each entry shows the time range, task name, elapsed duration, and outcome:
-
-```
-# 2026-02-16
-
-09:00:00 - 09:25:00 Write the report (25m0s) ✓
-09:30:00 - 09:42:15 Review PRs (12m15s) ✕
-10:00:00 - 10:50:00 Design new API (50m0s) ✓
-11:00:00 - 11:25:00 Fix login bug (25m0s) ✓
-14:00:00 - 14:10:30 Reply to emails (10m30s) ✕
-15:00:00 - 15:25:00 Write unit tests (25m0s) ✓
-
-# 2026-02-15
-
-09:15:00 - 09:40:00 Sprint planning (25m0s) ✓
-10:00:00 - 10:50:00 Implement auth flow (50m0s) ✓
-13:00:00 - 13:18:45 Code review (18m45s) ✕
-14:00:00 - 14:25:00 Update documentation (25m0s) ✓
-```
-
-- ✓ = timer completed (ran to expiry)
-- ✕ = timer stopped early
 
 ## Development
 
