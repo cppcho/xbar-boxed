@@ -54,6 +54,8 @@ make uninstall
 
 Since `boxed` is a plain CLI, you can wire it into any launcher. For example, with an [Alfred](https://www.alfredapp.com/) workflow you can set up keywords like `ts 25 Write the report` to start a timer and `tk` to stop it, optionally bound to a hotkey for even faster access.
 
+![Alfred workflow example](images/alfred-workflow.png)
+
 ## Configuration
 
 Config lives at `~/.config/boxed/config` (created automatically on first run):
