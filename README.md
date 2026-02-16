@@ -4,9 +4,11 @@ A timeboxing countdown timer that lives in your macOS menu bar. Built as an [xba
 
 I vibe-coded this for my own use because I found myself constantly getting distracted by other incoming tasks.
 
+![Boxed menu bar screenshot](images/screenshot.png)
+
 ## How It Works
 
-When a timer is running, the menu bar shows the task name and remaining time (e.g. `Write the report (24m30s)`). When no timer is active or after a timer expires, it shows 📦.
+When a timer is running, the menu bar shows the task name and remaining time (e.g. `Write the report (24m)`). When no timer is active or after a timer expires, it shows 📦.
 
 Clicking the menu bar icon reveals options to open your config file, activity log, or config directory.
 
