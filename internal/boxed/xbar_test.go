@@ -70,8 +70,8 @@ func TestXbar_RunningTimer_ShowsTaskAndRemaining(t *testing.T) {
 	if !strings.Contains(firstLine, "focus work") {
 		t.Errorf("expected 'focus work' in first line, got %q", firstLine)
 	}
-	if !strings.Contains(firstLine, "20m") {
-		t.Errorf("expected '20m' in first line, got %q", firstLine)
+	if !strings.Contains(firstLine, "20:00") {
+		t.Errorf("expected '20:00' in first line, got %q", firstLine)
 	}
 }
 

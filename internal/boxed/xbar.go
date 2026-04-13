@@ -45,7 +45,7 @@ func (x *XbarApp) Run() {
 					WriteStateKey(x.Paths, StateKeyCurrent, &timer)
 				}
 			}
-			x.out(fmt.Sprintf("%s (%s)", task, FormatDuration(remaining)))
+			x.out(fmt.Sprintf("%s (%s)", task, FormatTimer(remaining)))
 		}
 		x.out("---")
 	} else {
