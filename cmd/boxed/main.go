@@ -11,7 +11,7 @@ import (
 const usage = `Boxed - A timeboxing timer for your menu bar.
 
 Usage:
-    boxed start <duration in minutes> <task name...>
+    boxed start <duration in minutes> [task name...]
     boxed stop
     boxed again`
 

@@ -78,8 +78,15 @@ func TestCmdStart_PlaysSoundWhenEnabled(t *testing.T) {
 	os.WriteFile(app.Paths.ConfigFile, []byte("notify_sound = true\n"), 0o644)
 	app.CmdStart([]string{"5", "sound"})
 
-	if len(runner.Starts) != 1 {
-		t.Fatalf("expected 1 Start call, got %d", len(runner.Starts))
+	found := false
+	for _, s := range runner.Starts {
+		if strings.HasPrefix(s, "afplay") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected afplay Start call for sound")
 	}
 }
 
@@ -88,8 +95,10 @@ func TestCmdStart_NoSoundWhenDisabled(t *testing.T) {
 	os.WriteFile(app.Paths.ConfigFile, []byte("notify_sound = false\n"), 0o644)
 	app.CmdStart([]string{"5", "quiet"})
 
-	if len(runner.Starts) != 0 {
-		t.Errorf("expected no Start calls, got %d", len(runner.Starts))
+	for _, s := range runner.Starts {
+		if strings.HasPrefix(s, "afplay") {
+			t.Error("expected no afplay Start call when sound disabled")
+		}
 	}
 }
 
@@ -161,11 +170,22 @@ func TestCmdStart_MissingArgs(t *testing.T) {
 	}
 }
 
-func TestCmdStart_MissingTask(t *testing.T) {
-	app, _, _, _ := testApp(t)
+func TestCmdStart_NoTaskName(t *testing.T) {
+	app, _, stdout, _ := testApp(t)
 	err := app.CmdStart([]string{"25"})
-	if err == nil {
-		t.Error("expected error for missing task")
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	var timer CurrentTimer
+	if !ReadStateKey(app.Paths.StateFile, StateKeyCurrent, &timer) {
+		t.Fatal("expected current timer")
+	}
+	if timer.Task != "" {
+		t.Errorf("expected empty task, got %q", timer.Task)
+	}
+	if !strings.Contains(stdout.String(), "Untitled") {
+		t.Error("expected 'Untitled' in output")
 	}
 }
 
@@ -292,8 +312,15 @@ func TestCmdStop_PlaysSoundWhenEnabled(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
-	if len(runner.Starts) != 1 {
-		t.Errorf("expected 1 sound Start call, got %d", len(runner.Starts))
+	found := false
+	for _, s := range runner.Starts {
+		if strings.HasPrefix(s, "afplay") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected afplay Start call for sound")
 	}
 }
 
@@ -307,8 +334,10 @@ func TestCmdStop_NoSoundWhenDisabled(t *testing.T) {
 	app.NowFunc = func() time.Time { return time.Unix(1700000300, 0) }
 	app.CmdStop([]string{})
 
-	if len(runner.Starts) != 0 {
-		t.Errorf("expected no Start calls, got %d", len(runner.Starts))
+	for _, s := range runner.Starts {
+		if strings.HasPrefix(s, "afplay") {
+			t.Error("expected no afplay Start call when sound disabled")
+		}
 	}
 }
 

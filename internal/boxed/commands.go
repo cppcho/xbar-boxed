@@ -19,8 +19,8 @@ type App struct {
 
 // CmdStart starts a new timer.
 func (a *App) CmdStart(args []string) error {
-	if len(args) < 2 {
-		fmt.Fprintln(a.Stderr, "Usage: boxed start <duration in minutes> <task name...>")
+	if len(args) < 1 {
+		fmt.Fprintln(a.Stderr, "Usage: boxed start <duration in minutes> [task name...]")
 		return fmt.Errorf("exit 1")
 	}
 
@@ -31,6 +31,10 @@ func (a *App) CmdStart(args []string) error {
 	}
 
 	task := strings.Join(args[1:], " ")
+	displayTask := task
+	if displayTask == "" {
+		displayTask = "Untitled"
+	}
 
 	// If timer already running, stop it first
 	var old CurrentTimer
@@ -60,12 +64,13 @@ func (a *App) CmdStart(args []string) error {
 	})
 
 	config := ReadConfig(a.Paths.ConfigFile)
-	LogStart(a.Paths, now, duration, task)
-	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer started: %dm — %s", durationMins, task))
+	LogStart(a.Paths, now, duration, displayTask)
+	Notify(a.Runner, "Boxed", fmt.Sprintf("Timer started: %dm — %s", durationMins, displayTask))
 	if config.NotifySound {
 		PlaySoundByName(a.Runner, SoundNameStart)
 	}
-	fmt.Fprintf(a.Stdout, "Timer started: %dm — %s\n", durationMins, task)
+	SetFocus(a.Runner, true)
+	fmt.Fprintf(a.Stdout, "Timer started: %dm — %s\n", durationMins, displayTask)
 	return nil
 }
 
@@ -101,6 +106,7 @@ func CompleteTimer(paths Paths, runner CommandRunner, nowFunc func() time.Time) 
 	if config.NotifySound {
 		PlaySoundByName(runner, SoundNameComplete)
 	}
+	SetFocus(runner, false)
 
 	timer.Notified = true
 	WriteStateKey(paths, StateKeyCurrent, &timer)
@@ -124,6 +130,8 @@ func (a *App) CmdStop(args []string) error {
 		fmt.Fprintln(a.Stderr, "No timer running.")
 		return fmt.Errorf("exit 1")
 	}
+
+	SetFocus(a.Runner, false)
 
 	now := a.NowFunc()
 	task := timer.Task
